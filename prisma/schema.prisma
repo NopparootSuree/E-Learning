@@ -100,10 +100,10 @@ model Course {
   id          String    @id @default(cuid())
   title       String
   description String?
-  contentType String    // "video" or "powerpoint"
-  contentUrl  String?   // URL for external video or PowerPoint
-  videoSource String    @default("url") // "url" or "upload"
-  videoFile   String?   // Path to uploaded video file
+  contentType String    // "video" or "pdf"
+  contentUrl  String?   // URL for external content
+  contentSource String  @default("url") // "url" or "upload"
+  contentFile String?   // Path to uploaded file (video or PDF)
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

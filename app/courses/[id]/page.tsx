@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Video, FileText, Play, BookOpen, CheckCircle } from "lucide-react"
+import { ArrowLeft, Video, FileText, Play, BookOpen, CheckCircle, File } from "lucide-react"
 
 interface Test {
   id: string
@@ -23,8 +23,8 @@ interface Course {
   description: string | null
   contentType: string
   contentUrl: string
-  videoSource: string
-  videoFile: string | null
+  contentSource: string
+  contentFile: string | null
   isActive: boolean
   createdAt: string
   tests: Test[]
@@ -162,34 +162,71 @@ export default function CourseDetailPage() {
     updateProgress('complete_content', 100, Math.round(duration))
   }
   
-  const renderVideoContent = () => {
-    if (!course || course.contentType !== "video") return null
+  const renderContent = () => {
+    if (!course) return null
     
-    // ใช้เฉพาะ uploaded video files เท่านั้น
-    const videoUrl = course.videoFile
-    if (!videoUrl) return null
-    
-    return (
-      <video 
-        controls 
-        className="w-full h-full rounded-lg"
-        preload="metadata"
-        onPlay={handleVideoStart}
-        onTimeUpdate={(e) => {
-          const video = e.target as HTMLVideoElement
-          handleVideoProgress(video.currentTime, video.duration)
-        }}
-        onEnded={(e) => {
-          const video = e.target as HTMLVideoElement
-          handleVideoComplete(video.duration)
-        }}
-      >
-        <source src={videoUrl} type="video/mp4" />
-        <source src={videoUrl} type="video/webm" />
-        <source src={videoUrl} type="video/ogg" />
-        Your browser does not support the video tag.
-      </video>
-    )
+    // Use content file (for uploaded files) or content URL (for external links)
+    const contentUrl = course.contentSource === "upload" ? course.contentFile : course.contentUrl
+    if (!contentUrl) return null
+
+    if (course.contentType === "video") {
+      // Check if it's a YouTube URL
+      if (contentUrl.includes('youtube.com') || contentUrl.includes('youtu.be')) {
+        // Extract YouTube video ID and create embed URL
+        let videoId = ''
+        if (contentUrl.includes('youtube.com/watch?v=')) {
+          videoId = contentUrl.split('v=')[1]?.split('&')[0]
+        } else if (contentUrl.includes('youtu.be/')) {
+          videoId = contentUrl.split('youtu.be/')[1]?.split('?')[0]
+        }
+        
+        if (videoId) {
+          return (
+            <iframe
+              className="w-full h-full rounded-lg"
+              src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          )
+        }
+      }
+      
+      return (
+        <video 
+          controls 
+          className="w-full h-full rounded-lg"
+          preload="metadata"
+          onPlay={handleVideoStart}
+          onTimeUpdate={(e) => {
+            const video = e.target as HTMLVideoElement
+            handleVideoProgress(video.currentTime, video.duration)
+          }}
+          onEnded={(e) => {
+            const video = e.target as HTMLVideoElement
+            handleVideoComplete(video.duration)
+          }}
+        >
+          <source src={contentUrl} type="video/mp4" />
+          <source src={contentUrl} type="video/webm" />
+          <source src={contentUrl} type="video/ogg" />
+          Your browser does not support the video tag.
+        </video>
+      )
+    } else if (course.contentType === "pdf") {
+      return (
+        <iframe
+          src={contentUrl}
+          className="w-full rounded-lg border-0"
+          style={{ height: "80vh" }}
+          title="PDF Viewer"
+        />
+      )
+    }
+
+    return null
   }
 
   if (loading) {
@@ -240,7 +277,7 @@ export default function CourseDetailPage() {
                 <FileText className="h-4 w-4" />
               )}
               <span className="text-sm">
-                {course.contentType === "video" ? "วิดีโอ" : "PowerPoint"}
+                {course.contentType === "video" ? "วิดีโอ" : "PDF"}
               </span>
             </div>
           </div>
@@ -261,19 +298,25 @@ export default function CourseDetailPage() {
               )}
             </CardHeader>
             <CardContent>
-              {course.contentType === "video" ? (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   {/* Show video directly if pre-test is completed or no pre-test exists */}
                   {isPreTestCompleted() || !getPreTest() ? (
-                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                      {renderVideoContent()}
+                    <div className={course.contentType === "video" ? "aspect-video bg-black rounded-lg overflow-hidden" : "rounded-lg overflow-hidden"}>
+                      {renderContent()}
                     </div>
                   ) : (
                     <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                       <div className="text-center">
-                        <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        {course.contentType === "video" ? (
+                          <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        ) : (
+                          <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        )}
                         <p className="text-muted-foreground mb-4">ต้องทำแบบทดสوบก่อนเรียนก่อน</p>
-                        <p className="text-sm text-muted-foreground">กรุณาทำแบบทดสอบก่อนเรียนเพื่อดูเนื้อหาวิดีโอ</p>
+                        <p className="text-sm text-muted-foreground">
+                          กรุณาทำแบบทดสอบก่อนเรียนเพื่อดูเนื้อหา
+                          {course.contentType === "video" ? "วิดีโอ" : "PDF"}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -310,29 +353,6 @@ export default function CourseDetailPage() {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-4">PowerPoint เนื้อหา</p>
-                    {isPreTestCompleted() || !getPreTest() ? (
-                      <a 
-                        href={course.contentUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-block"
-                      >
-                        <Button>
-                          <FileText className="mr-2 h-4 w-4" />
-                          เปิดไฟล์
-                        </Button>
-                      </a>
-                    ) : (
-                      <p className="text-muted-foreground">ต้องทำแบบทดสอบก่อนเรียนก่อน</p>
-                    )}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -472,19 +492,27 @@ export default function CourseDetailPage() {
                 })}
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">URL เนื้อหา:</span>
+                <span className="text-muted-foreground">
+                  {course.contentSource === "upload" ? "ไฟล์เนื้อหา:" : "URL เนื้อหา:"}
+                </span>
                 <br />
-                <a 
-                  href={course.contentUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline break-all"
-                >
-                  {course.contentUrl.length > 30 
-                    ? `${course.contentUrl.substring(0, 30)}...`
-                    : course.contentUrl
-                  }
-                </a>
+                {course.contentSource === "upload" ? (
+                  <span className="text-muted-foreground">
+                    {course.contentFile?.split('/').pop() || "ไม่มีไฟล์"}
+                  </span>
+                ) : (
+                  <a 
+                    href={course.contentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline break-all"
+                  >
+                    {course.contentUrl.length > 30 
+                      ? `${course.contentUrl.substring(0, 30)}...`
+                      : course.contentUrl
+                    }
+                  </a>
+                )}
               </div>
             </CardContent>
           </Card>

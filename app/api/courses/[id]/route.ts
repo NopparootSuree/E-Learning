@@ -46,7 +46,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { title, description, contentType, contentUrl, videoSource, videoFile, isActive } = body
+    const { title, description, contentType, contentUrl, contentSource, contentFile, isActive } = body
 
     // Check if course exists
     const existingCourse = await prisma.course.findFirst({
@@ -64,27 +64,27 @@ export async function PUT(
     }
 
     // Validate content type if provided
-    if (contentType && !["video", "powerpoint"].includes(contentType)) {
+    if (contentType && !["video", "pdf"].includes(contentType)) {
       return NextResponse.json(
         { error: "ประเภทเนื้อหาไม่ถูกต้อง" },
         { status: 400 }
       )
     }
 
-    // Validate content based on type
-    if (contentType === "video") {
-      // For video, require videoFile (uploaded file)
-      if (videoFile === "" || (videoFile === undefined && !existingCourse.videoFile)) {
+    // Validate content based on source
+    if (contentSource === "upload") {
+      // For upload, require contentFile
+      if (contentFile === "" || (contentFile === undefined && !existingCourse.contentFile)) {
         return NextResponse.json(
-          { error: "กรุณาอัปโหลดไฟล์วิดีโอ" },
+          { error: "กรุณาอัปโหลดไฟล์" },
           { status: 400 }
         )
       }
-    } else if (contentType === "powerpoint") {
-      // For PowerPoint, require URL
+    } else if (contentSource === "url") {
+      // For URL, require contentUrl
       if (contentUrl && !contentUrl.startsWith("http")) {
         return NextResponse.json(
-          { error: "URL PowerPoint ไม่ถูกต้อง" },
+          { error: "URL ไม่ถูกต้อง" },
           { status: 400 }
         )
       }
@@ -96,8 +96,8 @@ export async function PUT(
     if (description !== undefined) updateData.description = description || null
     if (contentType !== undefined) updateData.contentType = contentType
     if (contentUrl !== undefined) updateData.contentUrl = contentUrl
-    if (videoSource !== undefined) updateData.videoSource = videoSource
-    if (videoFile !== undefined) updateData.videoFile = videoFile
+    if (contentSource !== undefined) updateData.contentSource = contentSource
+    if (contentFile !== undefined) updateData.contentFile = contentFile
     if (isActive !== undefined) updateData.isActive = isActive
 
     const course = await prisma.course.update({

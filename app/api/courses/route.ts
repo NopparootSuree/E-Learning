@@ -107,30 +107,30 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, description, contentType, contentUrl, videoSource = "url", videoFile = null, isActive = true } = body
+    const { title, description, contentType, contentUrl, contentSource = "url", contentFile = null, isActive = true } = body
 
     // Validate content type
-    if (!["video", "powerpoint"].includes(contentType)) {
+    if (!["video", "pdf", "powerpoint"].includes(contentType)) {
       return NextResponse.json(
         { error: "ประเภทเนื้อหาไม่ถูกต้อง" },
         { status: 400 }
       )
     }
 
-    // Validate content based on type
-    if (contentType === "video") {
-      // For video, require videoFile (uploaded file)
-      if (!videoFile) {
+    // Validate content based on source
+    if (contentSource === "upload") {
+      // For upload, require contentFile
+      if (!contentFile) {
         return NextResponse.json(
-          { error: "กรุณาอัปโหลดไฟล์วิดีโอ" },
+          { error: "กรุณาอัปโหลดไฟล์" },
           { status: 400 }
         )
       }
-    } else if (contentType === "powerpoint") {
-      // For PowerPoint, require URL
+    } else if (contentSource === "url") {
+      // For URL, require contentUrl
       if (!contentUrl || !contentUrl.startsWith("http")) {
         return NextResponse.json(
-          { error: "URL PowerPoint ไม่ถูกต้อง" },
+          { error: "URL ไม่ถูกต้อง" },
           { status: 400 }
         )
       }
@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
         description: description || null,
         contentType,
         contentUrl,
-        videoSource,
-        videoFile,
+        contentSource,
+        contentFile,
         isActive
       }
     })

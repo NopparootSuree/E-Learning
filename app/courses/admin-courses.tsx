@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Eye, Video, FileText, Upload, GraduationCap } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, Video, FileText, Upload, GraduationCap, File } from "lucide-react"
 
 interface Course {
   id: string
@@ -19,8 +19,8 @@ interface Course {
   description: string | null
   contentType: string
   contentUrl: string | null
-  videoSource: string
-  videoFile: string | null
+  contentSource: string
+  contentFile: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -36,11 +36,11 @@ export default function AdminCoursesPage() {
     description: "",
     contentType: "video",
     contentUrl: "",
-    videoSource: "upload", // เปลี่ยนเป็น upload เป็น default
-    videoFile: "",
+    contentSource: "upload", // เปลี่ยนเป็น upload เป็น default
+    contentFile: "",
     isActive: true
   })
-  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
     fetchCourses()
@@ -90,8 +90,8 @@ export default function AdminCoursesPage() {
       description: course.description || "",
       contentType: course.contentType,
       contentUrl: course.contentUrl || "",
-      videoSource: course.videoSource,
-      videoFile: course.videoFile || "",
+      contentSource: course.contentSource,
+      contentFile: course.contentFile || "",
       isActive: course.isActive
     })
     setDialogOpen(true)
@@ -131,21 +131,22 @@ export default function AdminCoursesPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploadingVideo(true)
+    setUploadingFile(true)
     try {
-      const formData = new FormData()
-      formData.append('video', file)
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+      uploadFormData.append('fileType', formData.contentType)
 
-      const response = await fetch('/api/upload/video', {
+      const response = await fetch('/api/upload/file', {
         method: 'POST',
-        body: formData
+        body: uploadFormData
       })
 
       if (response.ok) {
         const result = await response.json()
         setFormData(prev => ({ 
           ...prev, 
-          videoFile: result.url,
+          contentFile: result.url,
           contentUrl: result.url 
         }))
       } else {
@@ -153,10 +154,10 @@ export default function AdminCoursesPage() {
         alert(`เกิดข้อผิดพลาดในการอัปโหลด: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error uploading video:', error)
+      console.error('Error uploading file:', error)
       alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์')
     } finally {
-      setUploadingVideo(false)
+      setUploadingFile(false)
     }
   }
 
@@ -166,8 +167,8 @@ export default function AdminCoursesPage() {
       description: "",
       contentType: "video",
       contentUrl: "",
-      videoSource: "upload", // เปลี่ยนเป็น upload เป็น default
-      videoFile: "",
+      contentSource: "upload", // เปลี่ยนเป็น upload เป็น default
+      contentFile: "",
       isActive: true
     })
     setEditingCourse(null)
@@ -231,48 +232,81 @@ export default function AdminCoursesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="video">วิดีโอ</SelectItem>
-                      <SelectItem value="powerpoint">PowerPoint</SelectItem>
+                      <SelectItem value="pdf">PDF</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {formData.contentType === "video" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="videoFile">อัปโหลดไฟล์วิดีโอ</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="videoFile"
-                        type="file"
-                        accept="video/mp4,video/webm,video/ogg"
-                        onChange={handleFileUpload}
-                        disabled={uploadingVideo}
-                        required={!formData.videoFile}
-                      />
-                      {uploadingVideo && (
-                        <div className="text-sm text-muted-foreground">กำลังอัปโหลด...</div>
-                      )}
-                    </div>
-                    {formData.videoFile && (
-                      <div className="text-sm text-green-600">
-                        ✅ ไฟล์ที่อัปโหลด: {formData.videoFile.split('/').pop()}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      รองรับไฟล์ MP4, WebM, OGG ขนาดสูงสุด 100MB
-                    </div>
-                  </div>
-                )}
+                {/* Content Source Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="contentSource">แหล่งที่มาของเนื้อหา</Label>
+                  <Select 
+                    value={formData.contentSource} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, contentSource: value, contentUrl: "", contentFile: "" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="เลือกแหล่งที่มา" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="url">ลิงก์ URL</SelectItem>
+                      <SelectItem value="upload">อัปโหลดไฟล์</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {formData.contentType === "powerpoint" && (
+                {/* URL Input */}
+                {formData.contentSource === "url" && (
                   <div className="space-y-2">
-                    <Label htmlFor="contentUrl">URL PowerPoint</Label>
+                    <Label htmlFor="contentUrl">
+                      {formData.contentType === "video" ? "URL วิดีโอ (YouTube, etc.)" : 
+                       formData.contentType === "pdf" ? "URL ไฟล์ PDF" : 
+                       "URL PowerPoint"}
+                    </Label>
                     <Input
                       id="contentUrl"
                       value={formData.contentUrl}
                       onChange={(e) => setFormData(prev => ({ ...prev, contentUrl: e.target.value }))}
-                      placeholder="https://..."
+                      placeholder={formData.contentType === "video" ? "https://www.youtube.com/watch?v=..." : "https://..."}
                       required
                     />
+                  </div>
+                )}
+
+                {/* File Upload */}
+                {formData.contentSource === "upload" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="contentFile">
+                      อัปโหลดไฟล์{formData.contentType === "video" ? "วิดีโอ" : 
+                                  formData.contentType === "pdf" ? " PDF" : " PowerPoint"}
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="contentFile"
+                        type="file"
+                        accept={
+                          formData.contentType === "video" ? "video/mp4,video/webm,video/ogg" :
+                          "application/pdf"
+                        }
+                        onChange={handleFileUpload}
+                        disabled={uploadingFile}
+                        required={!formData.contentFile}
+                      />
+                      {uploadingFile && (
+                        <div className="text-sm text-muted-foreground">
+                          กำลังอัปโหลด...
+                        </div>
+                      )}
+                    </div>
+                    {formData.contentFile && (
+                      <div className="text-sm text-green-600">
+                        ✓ ไฟล์ถูกอัปโหลดแล้ว
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      {formData.contentType === "video" ? "รองรับไฟล์ MP4, WebM, OGG ขนาดสูงสุด 100MB" :
+                       formData.contentType === "pdf" ? "รองรับไฟล์ PDF ขนาดสูงสุด 50MB" :
+                       "รองรับไฟล์ PPT, PPTX ขนาดสูงสุด 50MB"}
+                    </div>
                   </div>
                 )}
               </div>
@@ -378,6 +412,8 @@ export default function AdminCoursesPage() {
                       <div className="flex items-center space-x-1">
                         {course.contentType === "video" ? (
                           <Video className="h-4 w-4 text-blue-500" />
+                        ) : course.contentType === "pdf" ? (
+                          <File className="h-4 w-4 text-red-500" />
                         ) : (
                           <FileText className="h-4 w-4 text-green-500" />
                         )}
