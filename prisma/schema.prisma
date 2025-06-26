@@ -32,7 +32,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("ACCOUNTS")
+  @@map("EL_ACCOUNTS")
 }
 
 model Session {
@@ -43,7 +43,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("SESSIONS")
+  @@map("EL_SESSIONS")
 }
 
 model User {
@@ -61,7 +61,7 @@ model User {
   sessions  Session[]
   employee  Employee? @relation(fields: [employeeId], references: [id])
 
-  @@map("USERS")
+  @@map("EL_USERS")
 }
 
 model VerificationToken {
@@ -70,7 +70,7 @@ model VerificationToken {
   expires    DateTime @map("EXPIRES")
 
   @@unique([identifier, token])
-  @@map("VERIFICATION_TOKENS")
+  @@map("EL_VERIFICATION_TOKENS")
 }
 
 // Employee/User model
@@ -92,7 +92,7 @@ model Employee {
   scores         Score[]
   user           User?
 
-  @@map("EMPLOYEES")
+  @@map("EL_EMPLOYEES")
 }
 
 // Course model
@@ -114,7 +114,7 @@ model Course {
   courseAttempts CourseAttempt[]
   scores         Score[]
 
-  @@map("COURSES")
+  @@map("EL_COURSES")
 }
 
 // Test model (Pre-test & Post-test)
@@ -134,7 +134,7 @@ model Test {
   questions    Question[]
   testAttempts TestAttempt[]
 
-  @@map("TESTS")
+  @@map("EL_TESTS")
 }
 
 // Question model
@@ -155,7 +155,7 @@ model Question {
   test    Test     @relation(fields: [testId], references: [id])
   answers Answer[]
 
-  @@map("QUESTIONS")
+  @@map("EL_QUESTIONS")
 }
 
 // Course attempt tracking
@@ -182,7 +182,7 @@ model CourseAttempt {
   course   Course   @relation(fields: [courseId], references: [id])
 
   @@unique([employeeId, courseId])
-  @@map("COURSE_ATTEMPTS")
+  @@map("EL_COURSE_ATTEMPTS")
 }
 
 // Test attempt tracking
@@ -204,7 +204,7 @@ model TestAttempt {
   answers  Answer[]
 
   @@unique([employeeId, testId])
-  @@map("TEST_ATTEMPTS")
+  @@map("EL_TEST_ATTEMPTS")
 }
 
 // Answer model
@@ -224,7 +224,7 @@ model Answer {
   question    Question    @relation(fields: [questionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([testAttemptId, questionId])
-  @@map("ANSWERS")
+  @@map("EL_ANSWERS")
 }
 
 // Score tracking
@@ -245,5 +245,5 @@ model Score {
   course   Course   @relation(fields: [courseId], references: [id])
 
   @@unique([employeeId, courseId])
-  @@map("SCORES")
+  @@map("EL_SCORES")
 }

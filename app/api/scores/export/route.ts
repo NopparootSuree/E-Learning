@@ -89,8 +89,8 @@ export async function GET(request: NextRequest) {
           COUNT(s.ID) as totalCourses,
           COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
           AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore
-        FROM EMPLOYEES e
-        LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+        FROM EL_EMPLOYEES e
+        LEFT JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
         WHERE e.DELETED_AT IS NULL
         GROUP BY e.ID, e.ID_EMP, e.NAME, e.DEPARTMENT
         ORDER BY e.DEPARTMENT, e.NAME
@@ -127,8 +127,8 @@ export async function GET(request: NextRequest) {
           AVG(CAST(s.PRE_TEST_SCORE as FLOAT)) as avgPreTest,
           AVG(CAST(s.POST_TEST_SCORE as FLOAT)) as avgPostTest,
           AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgFinalScore
-        FROM COURSES c
-        LEFT JOIN SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+        FROM EL_COURSES c
+        LEFT JOIN EL_SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
         WHERE c.DELETED_AT IS NULL
         GROUP BY c.ID, c.TITLE
         ORDER BY c.TITLE
@@ -163,8 +163,8 @@ export async function GET(request: NextRequest) {
           COUNT(DISTINCT e.ID) as totalEmployees,
           COUNT(DISTINCT CASE WHEN s.COMPLETED_AT IS NOT NULL THEN s.EMPLOYEE_ID END) as completedEmployees,
           AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgScore
-        FROM EMPLOYEES e
-        LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+        FROM EL_EMPLOYEES e
+        LEFT JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
         WHERE e.DELETED_AT IS NULL
         GROUP BY e.DEPARTMENT
         ORDER BY e.DEPARTMENT

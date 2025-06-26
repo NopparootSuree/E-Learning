@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
         e.DEPARTMENT as department,
         COUNT(DISTINCT e.ID) as total,
         COUNT(DISTINCT CASE WHEN s.COMPLETED_AT IS NOT NULL THEN s.EMPLOYEE_ID END) as completed
-      FROM EMPLOYEES e
-      LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+      FROM EL_EMPLOYEES e
+      LEFT JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
       WHERE e.DELETED_AT IS NULL
       GROUP BY e.DEPARTMENT
       ORDER BY e.DEPARTMENT
@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
         AVG(CAST(s.PRE_TEST_SCORE as FLOAT)) as averagePreTest,
         AVG(CAST(s.POST_TEST_SCORE as FLOAT)) as averagePostTest,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completions
-      FROM COURSES c
-      LEFT JOIN SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+      FROM EL_COURSES c
+      LEFT JOIN EL_SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
       WHERE c.DELETED_AT IS NULL
       GROUP BY c.ID, c.TITLE
       ORDER BY c.TITLE
@@ -115,8 +115,8 @@ export async function GET(request: NextRequest) {
         e.DEPARTMENT as department,
         AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses
-      FROM EMPLOYEES e
-      INNER JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
+      FROM EL_EMPLOYEES e
+      INNER JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
       WHERE e.DELETED_AT IS NULL
       GROUP BY e.ID, e.NAME, e.ID_EMP, e.DEPARTMENT
       HAVING COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) > 0

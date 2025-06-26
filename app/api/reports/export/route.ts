@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
         AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgScore,
         COUNT(s.ID) as totalEnrollments,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedEnrollments
-      FROM EMPLOYEES e
-      LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+      FROM EL_EMPLOYEES e
+      LEFT JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
       WHERE e.DELETED_AT IS NULL
       GROUP BY e.DEPARTMENT
       ORDER BY e.DEPARTMENT
@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
         AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgFinalScore,
         MIN(CAST(s.FINAL_SCORE as FLOAT)) as minScore,
         MAX(CAST(s.FINAL_SCORE as FLOAT)) as maxScore
-      FROM COURSES c
-      LEFT JOIN SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+      FROM EL_COURSES c
+      LEFT JOIN EL_SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
       WHERE c.DELETED_AT IS NULL
       GROUP BY c.ID, c.TITLE
       ORDER BY AVG(CAST(s.FINAL_SCORE as FLOAT)) DESC
@@ -162,8 +162,8 @@ export async function GET(request: NextRequest) {
         AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
         COUNT(s.ID) as totalCourses
-      FROM EMPLOYEES e
-      INNER JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
+      FROM EL_EMPLOYEES e
+      INNER JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
       WHERE e.DELETED_AT IS NULL
       GROUP BY e.ID, e.NAME, e.ID_EMP, e.DEPARTMENT, e.SECTION
       HAVING COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) > 0
@@ -206,8 +206,8 @@ export async function GET(request: NextRequest) {
         AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
         COUNT(s.ID) as totalCourses
-      FROM EMPLOYEES e
-      INNER JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
+      FROM EL_EMPLOYEES e
+      INNER JOIN EL_SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
       WHERE e.DELETED_AT IS NULL
       GROUP BY e.ID, e.NAME, e.ID_EMP, e.DEPARTMENT, e.SECTION
       HAVING AVG(CAST(s.FINAL_SCORE as FLOAT)) < 70 OR 
