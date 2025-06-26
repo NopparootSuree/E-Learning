@@ -4,6 +4,7 @@ import './globals.css'
 import { AppLayout } from '@/components/layout/app-layout'
 import { cn } from '@/lib/utils'
 import { SessionProvider } from 'next-auth/react'
+import { AlertDialogProvider } from '@/components/ui/alert-dialog-provider'
 
 const sarabun = Sarabun({
   subsets: ['latin', 'thai'],
@@ -29,9 +30,11 @@ export default function RootLayout({
         )}
       >
         <SessionProvider>
-          <AppLayout>
-            {children}
-          </AppLayout>
+          <AlertDialogProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </AlertDialogProvider>
         </SessionProvider>
       </body>
     </html>

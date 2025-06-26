@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get("employeeId")
     const courseId = searchParams.get("courseId")
     const userView = searchParams.get("userView")
+    const search = searchParams.get("search")
+    const status = searchParams.get("status")
 
     const whereClause: any = {
       deletedAt: null,
@@ -47,6 +49,37 @@ export async function GET(request: NextRequest) {
 
     if (courseId && courseId !== "all") {
       whereClause.courseId = courseId
+    }
+
+    // Search filter
+    if (search && search.trim()) {
+      whereClause.employee = {
+        ...whereClause.employee,
+        OR: [
+          { name: { contains: search.trim() } },
+          { idEmp: { contains: search.trim() } },
+          { department: { contains: search.trim() } },
+          { section: { contains: search.trim() } }
+        ]
+      }
+    }
+
+    // Status filter
+    if (status && status !== "all") {
+      switch (status) {
+        case "completed":
+          whereClause.completedAt = { not: null }
+          break
+        case "in_progress":
+          whereClause.completedAt = null
+          break
+        case "passed":
+          whereClause.finalScore = { gte: 80 }
+          break
+        case "failed":
+          whereClause.finalScore = { lt: 60 }
+          break
+      }
     }
 
     const scores = await prisma.score.findMany({

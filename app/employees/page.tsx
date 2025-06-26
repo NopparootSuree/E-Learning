@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, GraduationCap } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Edit, Trash2, GraduationCap, Search, Filter } from "lucide-react"
 
 interface Employee {
   id: string
@@ -25,6 +26,9 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [filterSearch, setFilterSearch] = useState<string>("") 
+  const [filterDepartment, setFilterDepartment] = useState<string>("all")
+  const [filterCompany, setFilterCompany] = useState<string>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
   const [formData, setFormData] = useState({
@@ -122,6 +126,21 @@ export default function EmployeesPage() {
     setEditingEmployee(null)
   }
 
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = !filterSearch || 
+      employee.name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      employee.idEmp.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      employee.section.toLowerCase().includes(filterSearch.toLowerCase())
+    
+    const matchesDepartment = filterDepartment === "all" || employee.department === filterDepartment
+    const matchesCompany = filterCompany === "all" || employee.company === filterCompany
+    
+    return matchesSearch && matchesDepartment && matchesCompany
+  })
+
+  const uniqueDepartments = Array.from(new Set(employees.map(emp => emp.department)))
+  const uniqueCompanies = Array.from(new Set(employees.map(emp => emp.company)))
+
   const handleDialogChange = (open: boolean) => {
     setDialogOpen(open)
     if (!open) {
@@ -211,11 +230,75 @@ export default function EmployeesPage() {
         </Dialog>
       </div>
 
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <Filter className="h-5 w-5" />
+            <span>กรองข้อมูล</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="search">ค้นหา</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="ค้นหาชื่อ รหัส..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            {/* Department Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="department">ฝ่าย</Label>
+              <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกฝ่าย" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ฝ่ายทั้งหมด</SelectItem>
+                  {uniqueDepartments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Company Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="company">บริษัท</Label>
+              <Select value={filterCompany} onValueChange={setFilterCompany}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกบริษัท" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">บริษัททั้งหมด</SelectItem>
+                  {uniqueCompanies.map((company) => (
+                    <SelectItem key={company} value={company}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>รายชื่อพนักงาน</CardTitle>
           <CardDescription>
-            รายชื่อพนักงานทั้งหมดในระบบ ({employees.length} คน)
+            แสดง {filteredEmployees.length} จาก {employees.length} คน
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -276,7 +359,7 @@ export default function EmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">{employee.idEmp}</TableCell>
                     <TableCell>{employee.name}</TableCell>

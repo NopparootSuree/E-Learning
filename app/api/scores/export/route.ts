@@ -66,9 +66,12 @@ export async function GET(request: NextRequest) {
         "ฝ่าย": score.employee.department,
         "บริษัท": score.employee.company,
         "หลักสูตร": score.course.title,
-        "คะแนน Pre-test": score.preTestScore !== null ? `${score.preTestScore}%` : "-",
-        "คะแนน Post-test": score.postTestScore !== null ? `${score.postTestScore}%` : "-",
-        "คะแนนรวม": score.finalScore !== null ? `${score.finalScore}%` : "-",
+        "คะแนน Pre-test (คะแนน)": score.preTestScore !== null ? score.preTestScore : "-",
+        "คะแนน Pre-test (%)": score.preTestScore !== null ? `${score.preTestScore}%` : "-",
+        "คะแนน Post-test (คะแนน)": score.postTestScore !== null ? score.postTestScore : "-", 
+        "คะแนน Post-test (%)": score.postTestScore !== null ? `${score.postTestScore}%` : "-",
+        "คะแนนรวม (คะแนน)": score.finalScore !== null ? score.finalScore : "-",
+        "คะแนนรวม (%)": score.finalScore !== null ? `${score.finalScore}%` : "-",
         "สถานะ": score.completedAt ? "เสร็จสมบูรณ์" : "กำลังเรียน",
         "วันที่เสร็จ": score.completedAt ? new Date(score.completedAt).toLocaleDateString("th-TH") : "-",
         "วันที่เริ่ม": new Date(score.createdAt).toLocaleDateString("th-TH")
@@ -81,16 +84,16 @@ export async function GET(request: NextRequest) {
       const employeeSummary = await prisma.$queryRaw`
         SELECT 
           e.ID_EMP as employeeId,
-          e.name as employeeName,
+          e.NAME as employeeName,
           e.DEPARTMENT as department,
-          COUNT(s.id) as totalCourses,
-          COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completedCourses,
-          AVG(CAST(s.finalScore as FLOAT)) as averageScore
-        FROM employees e
-        LEFT JOIN scores s ON e.id = s.employeeId AND s.deletedAt IS NULL
-        WHERE e.deletedAt IS NULL
-        GROUP BY e.id, e.ID_EMP, e.name, e.DEPARTMENT
-        ORDER BY e.DEPARTMENT, e.name
+          COUNT(s.ID) as totalCourses,
+          COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
+          AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore
+        FROM EMPLOYEES e
+        LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+        WHERE e.DELETED_AT IS NULL
+        GROUP BY e.ID, e.ID_EMP, e.NAME, e.DEPARTMENT
+        ORDER BY e.DEPARTMENT, e.NAME
       ` as Array<{
         employeeId: string
         employeeName: string
@@ -118,17 +121,17 @@ export async function GET(request: NextRequest) {
       // Summary by course
       const courseSummary = await prisma.$queryRaw`
         SELECT 
-          c.title as courseTitle,
-          COUNT(s.id) as totalAttempts,
-          COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completions,
-          AVG(CAST(s.preTestScore as FLOAT)) as avgPreTest,
-          AVG(CAST(s.postTestScore as FLOAT)) as avgPostTest,
-          AVG(CAST(s.finalScore as FLOAT)) as avgFinalScore
-        FROM courses c
-        LEFT JOIN scores s ON c.id = s.courseId AND s.deletedAt IS NULL
-        WHERE c.deletedAt IS NULL
-        GROUP BY c.id, c.title
-        ORDER BY c.title
+          c.TITLE as courseTitle,
+          COUNT(s.ID) as totalAttempts,
+          COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completions,
+          AVG(CAST(s.PRE_TEST_SCORE as FLOAT)) as avgPreTest,
+          AVG(CAST(s.POST_TEST_SCORE as FLOAT)) as avgPostTest,
+          AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgFinalScore
+        FROM COURSES c
+        LEFT JOIN SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+        WHERE c.DELETED_AT IS NULL
+        GROUP BY c.ID, c.TITLE
+        ORDER BY c.TITLE
       ` as Array<{
         courseTitle: string
         totalAttempts: bigint
@@ -157,12 +160,12 @@ export async function GET(request: NextRequest) {
       const deptSummary = await prisma.$queryRaw`
         SELECT 
           e.DEPARTMENT as department,
-          COUNT(DISTINCT e.id) as totalEmployees,
-          COUNT(DISTINCT CASE WHEN s.completedAt IS NOT NULL THEN s.employeeId END) as completedEmployees,
-          AVG(CAST(s.finalScore as FLOAT)) as avgScore
-        FROM employees e
-        LEFT JOIN scores s ON e.id = s.employeeId AND s.deletedAt IS NULL
-        WHERE e.deletedAt IS NULL
+          COUNT(DISTINCT e.ID) as totalEmployees,
+          COUNT(DISTINCT CASE WHEN s.COMPLETED_AT IS NOT NULL THEN s.EMPLOYEE_ID END) as completedEmployees,
+          AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgScore
+        FROM EMPLOYEES e
+        LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+        WHERE e.DELETED_AT IS NULL
         GROUP BY e.DEPARTMENT
         ORDER BY e.DEPARTMENT
       ` as Array<{

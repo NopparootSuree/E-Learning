@@ -16,75 +16,75 @@ datasource db {
 
 // NextAuth.js models
 model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+  id                String  @id @default(cuid()) @map("ID")
+  userId            String  @map("USER_ID")
+  type              String  @map("TYPE")
+  provider          String  @map("PROVIDER")
+  providerAccountId String  @map("PROVIDER_ACCOUNT_ID")
+  refresh_token     String? @db.Text @map("REFRESH_TOKEN")
+  access_token      String? @db.Text @map("ACCESS_TOKEN")
+  expires_at        Int?    @map("EXPIRES_AT")
+  token_type        String? @map("TOKEN_TYPE")
+  scope             String? @map("SCOPE")
+  id_token          String? @db.Text @map("ID_TOKEN")
+  session_state     String? @map("SESSION_STATE")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("accounts")
+  @@map("ACCOUNTS")
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
+  id           String   @id @default(cuid()) @map("ID")
+  sessionToken String   @unique @map("SESSION_TOKEN")
+  userId       String   @map("USER_ID")
+  expires      DateTime @map("EXPIRES")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("sessions")
+  @@map("SESSIONS")
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("user") // "user" or "admin"
-  employeeId    String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id            String    @id @default(cuid()) @map("ID")
+  name          String?   @map("NAME")
+  email         String?   @unique @map("EMAIL")
+  emailVerified DateTime? @map("EMAIL_VERIFIED")
+  image         String?   @map("IMAGE")
+  role          String    @default("user") @map("ROLE") // "user" or "admin"
+  employeeId    String?   @unique @map("EMPLOYEE_ID")
+  createdAt     DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt     DateTime  @updatedAt @map("UPDATED_AT")
 
   accounts  Account[]
   sessions  Session[]
   employee  Employee? @relation(fields: [employeeId], references: [id])
 
-  @@map("users")
+  @@map("USERS")
 }
 
 model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+  identifier String   @map("IDENTIFIER")
+  token      String   @unique @map("TOKEN")
+  expires    DateTime @map("EXPIRES")
 
   @@unique([identifier, token])
-  @@map("verificationtokens")
+  @@map("VERIFICATION_TOKENS")
 }
 
 // Employee/User model
 model Employee {
-  id          String    @id @default(cuid())
+  id          String    @id @default(cuid()) @map("ID")
   idEmp       String    @unique @map("ID_EMP")
   name        String    @map("NAME")
   section     String    @map("SECTION")
   department  String    @map("DEPARTMENT")
   company     String    @map("COMPANY")
   password    String?   @map("PASSWORD") // Add password field
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
 
   // Relations
   courseAttempts CourseAttempt[]
@@ -92,111 +92,111 @@ model Employee {
   scores         Score[]
   user           User?
 
-  @@map("employees")
+  @@map("EMPLOYEES")
 }
 
 // Course model
 model Course {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  contentType String    // "video" or "pdf"
-  contentUrl  String?   // URL for external content
-  contentSource String  @default("url") // "url" or "upload"
-  contentFile String?   // Path to uploaded file (video or PDF)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id          String    @id @default(cuid()) @map("ID")
+  title       String    @map("TITLE")
+  description String?   @map("DESCRIPTION")
+  contentType String    @map("CONTENT_TYPE") // "video" or "pdf"
+  contentUrl  String?   @map("CONTENT_URL") // URL for external content
+  contentSource String  @default("url") @map("CONTENT_SOURCE") // "url" or "upload"
+  contentFile String?   @map("CONTENT_FILE") // Path to uploaded file (video or PDF)
+  isActive    Boolean   @default(true) @map("IS_ACTIVE")
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
 
   // Relations
   tests          Test[]
   courseAttempts CourseAttempt[]
   scores         Score[]
 
-  @@map("courses")
+  @@map("COURSES")
 }
 
 // Test model (Pre-test & Post-test)
 model Test {
-  id          String    @id @default(cuid())
-  courseId    String
-  type        String    // "pretest" or "posttest"
-  title       String
-  description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id          String    @id @default(cuid()) @map("ID")
+  courseId    String    @map("COURSE_ID")
+  type        String    @map("TYPE") // "pretest" or "posttest"
+  title       String    @map("TITLE")
+  description String?   @map("DESCRIPTION")
+  isActive    Boolean   @default(true) @map("IS_ACTIVE")
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
 
   // Relations
   course       Course        @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   questions    Question[]
   testAttempts TestAttempt[]
 
-  @@map("tests")
+  @@map("TESTS")
 }
 
 // Question model
 model Question {
-  id          String    @id @default(cuid())
-  testId      String
-  type        String    // "multiple_choice" or "written"
-  question    String
-  options     String?   // JSON array for multiple choice options
-  correctAnswer String? // For multiple choice questions
-  points      Int       @default(1)
-  order       Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id          String    @id @default(cuid()) @map("ID")
+  testId      String    @map("TEST_ID")
+  type        String    @map("TYPE") // "multiple_choice" or "written"
+  question    String    @map("QUESTION")
+  options     String?   @map("OPTIONS") // JSON array for multiple choice options
+  correctAnswer String? @map("CORRECT_ANSWER") // For multiple choice questions
+  points      Int       @default(1) @map("POINTS")
+  order       Int       @map("ORDER")
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
 
   // Relations
   test    Test     @relation(fields: [testId], references: [id])
   answers Answer[]
 
-  @@map("questions")
+  @@map("QUESTIONS")
 }
 
 // Course attempt tracking
 model CourseAttempt {
-  id         String    @id @default(cuid())
-  employeeId String
-  courseId   String
-  startedAt  DateTime  @default(now())
-  completedAt DateTime?
-  status     String    @default("in_progress") // "in_progress", "content_viewed", "completed"
+  id         String    @id @default(cuid()) @map("ID")
+  employeeId String    @map("EMPLOYEE_ID")
+  courseId   String    @map("COURSE_ID")
+  startedAt  DateTime  @default(now()) @map("STARTED_AT")
+  completedAt DateTime? @map("COMPLETED_AT")
+  status     String    @default("in_progress") @map("STATUS") // "in_progress", "content_viewed", "completed"
   
   // Content viewing tracking
-  contentStartedAt  DateTime? // เริ่มดูเนื้อหา
-  contentCompletedAt DateTime? // ดูเนื้อหาเสร็จ
-  contentDuration   Int?      // ระยะเวลาที่ดู (วินาที)
-  contentProgress   Float     @default(0) // เปอร์เซ็นต์ความคืบหน้า (0-100)
+  contentStartedAt  DateTime? @map("CONTENT_STARTED_AT") // เริ่มดูเนื้อหา
+  contentCompletedAt DateTime? @map("CONTENT_COMPLETED_AT") // ดูเนื้อหาเสร็จ
+  contentDuration   Int?      @map("CONTENT_DURATION") // ระยะเวลาที่ดู (วินาที)
+  contentProgress   Float     @default(0) @map("CONTENT_PROGRESS") // เปอร์เซ็นต์ความคืบหน้า (0-100)
   
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  createdAt  DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt  DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt  DateTime? @map("DELETED_AT")
 
   // Relations
   employee Employee @relation(fields: [employeeId], references: [id])
   course   Course   @relation(fields: [courseId], references: [id])
 
   @@unique([employeeId, courseId])
-  @@map("course_attempts")
+  @@map("COURSE_ATTEMPTS")
 }
 
 // Test attempt tracking
 model TestAttempt {
-  id         String    @id @default(cuid())
-  employeeId String
-  testId     String
-  startedAt  DateTime  @default(now())
-  completedAt DateTime?
-  score      Float?
-  status     String    @default("in_progress") // "in_progress", "completed"
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  id         String    @id @default(cuid()) @map("ID")
+  employeeId String    @map("EMPLOYEE_ID")
+  testId     String    @map("TEST_ID")
+  startedAt  DateTime  @default(now()) @map("STARTED_AT")
+  completedAt DateTime? @map("COMPLETED_AT")
+  score      Float?    @map("SCORE")
+  status     String    @default("in_progress") @map("STATUS") // "in_progress", "completed"
+  createdAt  DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt  DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt  DateTime? @map("DELETED_AT")
 
   // Relations
   employee Employee @relation(fields: [employeeId], references: [id])
@@ -204,46 +204,46 @@ model TestAttempt {
   answers  Answer[]
 
   @@unique([employeeId, testId])
-  @@map("test_attempts")
+  @@map("TEST_ATTEMPTS")
 }
 
 // Answer model
 model Answer {
-  id            String    @id @default(cuid())
-  testAttemptId String
-  questionId    String
-  answer        String
-  isCorrect     Boolean?
-  points        Float     @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  id            String    @id @default(cuid()) @map("ID")
+  testAttemptId String    @map("TEST_ATTEMPT_ID")
+  questionId    String    @map("QUESTION_ID")
+  answer        String    @map("ANSWER")
+  isCorrect     Boolean?  @map("IS_CORRECT")
+  points        Float     @default(0) @map("POINTS")
+  createdAt     DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt     DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt     DateTime? @map("DELETED_AT")
 
   // Relations
   testAttempt TestAttempt @relation(fields: [testAttemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   question    Question    @relation(fields: [questionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([testAttemptId, questionId])
-  @@map("answers")
+  @@map("ANSWERS")
 }
 
 // Score tracking
 model Score {
-  id         String    @id @default(cuid())
-  employeeId String
-  courseId   String
-  preTestScore  Float?
-  postTestScore Float?
-  finalScore    Float?
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  id         String    @id @default(cuid()) @map("ID")
+  employeeId String    @map("EMPLOYEE_ID")
+  courseId   String    @map("COURSE_ID")
+  preTestScore  Float? @map("PRE_TEST_SCORE")
+  postTestScore Float? @map("POST_TEST_SCORE")
+  finalScore    Float? @map("FINAL_SCORE")
+  completedAt   DateTime? @map("COMPLETED_AT")
+  createdAt     DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt     DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt     DateTime? @map("DELETED_AT")
 
   // Relations
   employee Employee @relation(fields: [employeeId], references: [id])
   course   Course   @relation(fields: [courseId], references: [id])
 
   @@unique([employeeId, courseId])
-  @@map("scores")
+  @@map("SCORES")
 }

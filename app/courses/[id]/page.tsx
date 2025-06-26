@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowLeft, Video, FileText, Play, BookOpen, CheckCircle, File } from "lucide-react"
 
 interface Test {
@@ -56,6 +57,8 @@ export default function CourseDetailPage() {
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null)
   const [loading, setLoading] = useState(true)
   const [videoProgress, setVideoProgress] = useState(0)
+  const [showDialog, setShowDialog] = useState(false)
+  const [dialogContent, setDialogContent] = useState({ title: "", description: "" })
 
   useEffect(() => {
     if (params.id) {
@@ -162,6 +165,21 @@ export default function CourseDetailPage() {
     updateProgress('complete_content', 100, Math.round(duration))
   }
   
+  const handlePDFStart = () => {
+    if (!courseProgress?.hasStartedContent) {
+      updateProgress('start_content')
+    }
+  }
+  
+  const handlePDFComplete = async () => {
+    await updateProgress('complete_content', 100, 0)
+    setDialogContent({
+      title: "เรียนจบแล้ว!",
+      description: "คุณได้อ่านเนื้อหาเรียบร้อยแล้ว ตอนนี้สามารถเข้าทำข้อสอบหลังเรียนได้"
+    })
+    setShowDialog(true)
+  }
+  
   const renderContent = () => {
     if (!course) return null
     
@@ -217,12 +235,36 @@ export default function CourseDetailPage() {
       )
     } else if (course.contentType === "pdf") {
       return (
-        <iframe
-          src={contentUrl}
-          className="w-full rounded-lg border-0"
-          style={{ height: "80vh" }}
-          title="PDF Viewer"
-        />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <File className="w-5 h-5" />
+              <span>PDF เอกสาร</span>
+              {isContentCompleted() && (
+                <Badge variant="default" className="bg-green-500">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  อ่านจบแล้ว
+                </Badge>
+              )}
+            </div>
+            {!isContentCompleted() && (
+              <Button 
+                onClick={handlePDFComplete}
+                variant="outline"
+                size="sm"
+              >
+                ทำเครื่องหมายว่าอ่านจบแล้ว
+              </Button>
+            )}
+          </div>
+          <iframe
+            src={contentUrl}
+            className="w-full rounded-lg border-0"
+            style={{ height: "80vh" }}
+            title="PDF Viewer"
+            onLoad={handlePDFStart}
+          />
+        </div>
       )
     }
 
@@ -518,6 +560,21 @@ export default function CourseDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{dialogContent.title}</DialogTitle>
+            <DialogDescription>{dialogContent.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowDialog(false)}>
+              รับทราบ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

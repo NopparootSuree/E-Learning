@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Clock, CheckCircle, AlertCircle, GraduationCap } from "lucide-react"
+import { useAlertDialog } from "@/components/ui/alert-dialog-provider"
 
 interface Question {
   id: string
@@ -43,6 +44,7 @@ interface Answer {
 export default function TestPage() {
   const params = useParams()
   const router = useRouter()
+  const { showAlert, showConfirm } = useAlertDialog()
   const [test, setTest] = useState<Test | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -89,11 +91,21 @@ export default function TestPage() {
     // Check if all questions are answered
     const unansweredQuestions = answers.filter(a => !a.answer.trim())
     if (unansweredQuestions.length > 0) {
-      alert(`กรุณาตอบคำถามให้ครบทุกข้อ (เหลืออีก ${unansweredQuestions.length} ข้อ)`)
+      await showAlert({
+        title: "กรุณาตอบคำถามให้ครบ",
+        description: `กรุณาตอบคำถามให้ครบทุกข้อ (เหลืออีก ${unansweredQuestions.length} ข้อ)`
+      })
       return
     }
 
-    if (!confirm("คุณต้องการส่งคำตอบหรือไม่? คุณจะไม่สามารถแก้ไขได้อีก")) {
+    const confirmed = await showConfirm({
+      title: "ยืนยันการส่งคำตอบ",
+      description: "คุณต้องการส่งคำตอบหรือไม่? คุณจะไม่สามารถแก้ไขได้อีก",
+      confirmText: "ส่งคำตอบ",
+      cancelText: "ยกเลิก"
+    })
+    
+    if (!confirmed) {
       return
     }
 
@@ -113,11 +125,17 @@ export default function TestPage() {
         setSubmitted(true)
       } else {
         const error = await response.json()
-        alert(error.error || "เกิดข้อผิดพลาดในการส่งคำตอบ")
+        await showAlert({
+          title: "เกิดข้อผิดพลาด",
+          description: error.error || "เกิดข้อผิดพลาดในการส่งคำตอบ"
+        })
       }
     } catch (error) {
       console.error("Error submitting test:", error)
-      alert("เกิดข้อผิดพลาดในการส่งคำตอบ")
+      await showAlert({
+        title: "เกิดข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาดในการส่งคำตอบ"
+      })
     } finally {
       setSubmitting(false)
     }

@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trophy, BookOpen, CheckCircle, XCircle, Clock, Download, GraduationCap } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Trophy, BookOpen, CheckCircle, XCircle, Clock, Download, GraduationCap, Search, Filter } from "lucide-react"
 
 interface Employee {
   id: string
@@ -44,6 +45,8 @@ export default function ScoresPage() {
   const [loading, setLoading] = useState(true)
   const [filterEmployee, setFilterEmployee] = useState<string>("all")
   const [filterCourse, setFilterCourse] = useState<string>("all")
+  const [filterSearch, setFilterSearch] = useState<string>("")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
   const [employees, setEmployees] = useState<Employee[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   
@@ -63,7 +66,7 @@ export default function ScoresPage() {
     if (session) {
       fetchScores()
     }
-  }, [filterEmployee, filterCourse, session])
+  }, [filterEmployee, filterCourse, filterSearch, filterStatus, session])
 
   const fetchScores = async () => {
     try {
@@ -83,6 +86,14 @@ export default function ScoresPage() {
       
       if (filterCourse !== "all") {
         params.append("courseId", filterCourse)
+      }
+      
+      if (filterSearch) {
+        params.append("search", filterSearch)
+      }
+      
+      if (filterStatus !== "all") {
+        params.append("status", filterStatus)
       }
       
       if (params.toString()) {
@@ -252,10 +263,27 @@ export default function ScoresPage() {
       {/* Filters */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">กรองข้อมูล</CardTitle>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <Filter className="h-5 w-5" />
+            <span>กรองข้อมูล</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">ค้นหา</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="ค้นหาชื่อพนักงาน..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
             {/* Filter พนักงาน - แสดงเฉพาะ Admin */}
             {isAdmin && (
               <div className="space-y-2">
@@ -275,6 +303,8 @@ export default function ScoresPage() {
                 </Select>
               </div>
             )}
+            
+            {/* Course Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">หลักสูตร</label>
               <Select value={filterCourse} onValueChange={setFilterCourse}>
@@ -288,6 +318,23 @@ export default function ScoresPage() {
                       {course.title}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">สถานะ</label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกสถานะ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะทั้งหมด</SelectItem>
+                  <SelectItem value="completed">เรียนจบแล้ว</SelectItem>
+                  <SelectItem value="in_progress">กำลังเรียน</SelectItem>
+                  <SelectItem value="passed">ผ่าน (≥80%)</SelectItem>
+                  <SelectItem value="failed">ไม่ผ่าน ({`<60%`})</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -428,19 +475,40 @@ export default function ScoresPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={getScoreColor(score.preTestScore)}>
-                        {score.preTestScore !== null ? `${score.preTestScore}%` : "-"}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`font-medium ${getScoreColor(score.preTestScore)}`}>
+                          {score.preTestScore !== null ? `${score.preTestScore}` : "-"}
+                        </span>
+                        {score.preTestScore !== null && (
+                          <div className="text-xs text-muted-foreground">
+                            ({score.preTestScore}%)
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={getScoreColor(score.postTestScore)}>
-                        {score.postTestScore !== null ? `${score.postTestScore}%` : "-"}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`font-medium ${getScoreColor(score.postTestScore)}`}>
+                          {score.postTestScore !== null ? `${score.postTestScore}` : "-"}
+                        </span>
+                        {score.postTestScore !== null && (
+                          <div className="text-xs text-muted-foreground">
+                            ({score.postTestScore}%)
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={`font-medium ${getScoreColor(score.finalScore)}`}>
-                        {score.finalScore !== null ? `${score.finalScore}%` : "-"}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`font-bold ${getScoreColor(score.finalScore)}`}>
+                          {score.finalScore !== null ? `${score.finalScore}` : "-"}
+                        </span>
+                        {score.finalScore !== null && (
+                          <div className="text-xs text-muted-foreground">
+                            ({score.finalScore}%)
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       {score.completedAt ? (

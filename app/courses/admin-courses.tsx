@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Eye, Video, FileText, Upload, GraduationCap, File } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, Video, FileText, Upload, GraduationCap, File, Search, Filter } from "lucide-react"
 
 interface Course {
   id: string
@@ -41,6 +41,9 @@ export default function AdminCoursesPage() {
     isActive: true
   })
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [filterSearch, setFilterSearch] = useState<string>("") 
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterType, setFilterType] = useState<string>("all")
 
   useEffect(() => {
     fetchCourses()
@@ -173,6 +176,20 @@ export default function AdminCoursesPage() {
     })
     setEditingCourse(null)
   }
+
+  const filteredCourses = courses.filter(course => {
+    const matchesSearch = !filterSearch || 
+      course.title.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      course.description?.toLowerCase().includes(filterSearch.toLowerCase())
+    
+    const matchesStatus = filterStatus === "all" || 
+      (filterStatus === "active" && course.isActive) ||
+      (filterStatus === "inactive" && !course.isActive)
+    
+    const matchesType = filterType === "all" || course.contentType === filterType
+    
+    return matchesSearch && matchesStatus && matchesType
+  })
 
   return (
     <div className="space-y-6">
@@ -334,6 +351,64 @@ export default function AdminCoursesPage() {
         </Dialog>
       </div>
 
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <Filter className="h-5 w-5" />
+            <span>กรองข้อมูล</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="search">ค้นหา</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="ค้นหาชื่อหลักสูตร..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="status">สถานะ</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกสถานะ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะทั้งหมด</SelectItem>
+                  <SelectItem value="active">เปิดใช้งาน</SelectItem>
+                  <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Type Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="type">ประเภทเนื้อหา</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกประเภท" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ประเภททั้งหมด</SelectItem>
+                  <SelectItem value="video">วิดีโอ</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {loading ? (
         <div className="space-y-6">
           {/* Loading Table Skeleton */}
@@ -381,7 +456,7 @@ export default function AdminCoursesPage() {
           <CardHeader>
             <CardTitle>รายการหลักสูตรทั้งหมด</CardTitle>
             <CardDescription>
-              จำนวนหลักสูตรทั้งหมด: {courses.length} หลักสูตร
+              แสดง {filteredCourses.length} จาก {courses.length} หลักสูตร
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -396,7 +471,7 @@ export default function AdminCoursesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {courses.map((course) => (
+                {filteredCourses.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell>
                       <div>

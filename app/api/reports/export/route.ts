@@ -71,14 +71,14 @@ export async function GET(request: NextRequest) {
     const completionByDepartment = await prisma.$queryRaw`
       SELECT 
         e.DEPARTMENT as department,
-        COUNT(DISTINCT e.id) as totalEmployees,
-        COUNT(DISTINCT CASE WHEN s.completedAt IS NOT NULL THEN s.employeeId END) as completedEmployees,
-        AVG(CAST(s.finalScore as FLOAT)) as avgScore,
-        COUNT(s.id) as totalEnrollments,
-        COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completedEnrollments
-      FROM employees e
-      LEFT JOIN scores s ON e.id = s.employeeId AND s.deletedAt IS NULL
-      WHERE e.deletedAt IS NULL
+        COUNT(DISTINCT e.ID) as totalEmployees,
+        COUNT(DISTINCT CASE WHEN s.COMPLETED_AT IS NOT NULL THEN s.EMPLOYEE_ID END) as completedEmployees,
+        AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgScore,
+        COUNT(s.ID) as totalEnrollments,
+        COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedEnrollments
+      FROM EMPLOYEES e
+      LEFT JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL
+      WHERE e.DELETED_AT IS NULL
       GROUP BY e.DEPARTMENT
       ORDER BY e.DEPARTMENT
     ` as Array<{
@@ -111,19 +111,19 @@ export async function GET(request: NextRequest) {
     // Course performance
     const coursePerformance = await prisma.$queryRaw`
       SELECT 
-        c.title as courseTitle,
-        COUNT(s.id) as totalAttempts,
-        COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completions,
-        AVG(CAST(s.preTestScore as FLOAT)) as avgPreTest,
-        AVG(CAST(s.postTestScore as FLOAT)) as avgPostTest,
-        AVG(CAST(s.finalScore as FLOAT)) as avgFinalScore,
-        MIN(CAST(s.finalScore as FLOAT)) as minScore,
-        MAX(CAST(s.finalScore as FLOAT)) as maxScore
-      FROM courses c
-      LEFT JOIN scores s ON c.id = s.courseId AND s.deletedAt IS NULL
-      WHERE c.deletedAt IS NULL
-      GROUP BY c.id, c.title
-      ORDER BY AVG(CAST(s.finalScore as FLOAT)) DESC
+        c.TITLE as courseTitle,
+        COUNT(s.ID) as totalAttempts,
+        COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completions,
+        AVG(CAST(s.PRE_TEST_SCORE as FLOAT)) as avgPreTest,
+        AVG(CAST(s.POST_TEST_SCORE as FLOAT)) as avgPostTest,
+        AVG(CAST(s.FINAL_SCORE as FLOAT)) as avgFinalScore,
+        MIN(CAST(s.FINAL_SCORE as FLOAT)) as minScore,
+        MAX(CAST(s.FINAL_SCORE as FLOAT)) as maxScore
+      FROM COURSES c
+      LEFT JOIN SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+      WHERE c.DELETED_AT IS NULL
+      GROUP BY c.ID, c.TITLE
+      ORDER BY AVG(CAST(s.FINAL_SCORE as FLOAT)) DESC
     ` as Array<{
       courseTitle: string
       totalAttempts: bigint
@@ -155,19 +155,19 @@ export async function GET(request: NextRequest) {
     // Top performers
     const topPerformers = await prisma.$queryRaw`
       SELECT 
-        e.name as employeeName,
+        e.NAME as employeeName,
         e.ID_EMP as employeeId,
         e.DEPARTMENT as department,
         e.SECTION as section,
-        AVG(CAST(s.finalScore as FLOAT)) as averageScore,
-        COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completedCourses,
-        COUNT(s.id) as totalCourses
-      FROM employees e
-      INNER JOIN scores s ON e.id = s.employeeId AND s.deletedAt IS NULL AND s.finalScore IS NOT NULL
-      WHERE e.deletedAt IS NULL
-      GROUP BY e.id, e.name, e.ID_EMP, e.DEPARTMENT, e.SECTION
-      HAVING COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) > 0
-      ORDER BY AVG(CAST(s.finalScore as FLOAT)) DESC, COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) DESC
+        AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore,
+        COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
+        COUNT(s.ID) as totalCourses
+      FROM EMPLOYEES e
+      INNER JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
+      WHERE e.DELETED_AT IS NULL
+      GROUP BY e.ID, e.NAME, e.ID_EMP, e.DEPARTMENT, e.SECTION
+      HAVING COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) > 0
+      ORDER BY AVG(CAST(s.FINAL_SCORE as FLOAT)) DESC, COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) DESC
       OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY
     ` as Array<{
       employeeName: string
@@ -199,20 +199,20 @@ export async function GET(request: NextRequest) {
     // Low performers (need improvement)
     const lowPerformers = await prisma.$queryRaw`
       SELECT 
-        e.name as employeeName,
+        e.NAME as employeeName,
         e.ID_EMP as employeeId,
         e.DEPARTMENT as department,
         e.SECTION as section,
-        AVG(CAST(s.finalScore as FLOAT)) as averageScore,
-        COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END) as completedCourses,
-        COUNT(s.id) as totalCourses
-      FROM employees e
-      INNER JOIN scores s ON e.id = s.employeeId AND s.deletedAt IS NULL AND s.finalScore IS NOT NULL
-      WHERE e.deletedAt IS NULL
-      GROUP BY e.id, e.name, e.ID_EMP, e.DEPARTMENT, e.SECTION
-      HAVING AVG(CAST(s.finalScore as FLOAT)) < 70 OR 
-             (COUNT(s.id) - COUNT(CASE WHEN s.completedAt IS NOT NULL THEN 1 END)) > 0
-      ORDER BY AVG(CAST(s.finalScore as FLOAT)) ASC
+        AVG(CAST(s.FINAL_SCORE as FLOAT)) as averageScore,
+        COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completedCourses,
+        COUNT(s.ID) as totalCourses
+      FROM EMPLOYEES e
+      INNER JOIN SCORES s ON e.ID = s.EMPLOYEE_ID AND s.DELETED_AT IS NULL AND s.FINAL_SCORE IS NOT NULL
+      WHERE e.DELETED_AT IS NULL
+      GROUP BY e.ID, e.NAME, e.ID_EMP, e.DEPARTMENT, e.SECTION
+      HAVING AVG(CAST(s.FINAL_SCORE as FLOAT)) < 70 OR 
+             (COUNT(s.ID) - COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END)) > 0
+      ORDER BY AVG(CAST(s.FINAL_SCORE as FLOAT)) ASC
       OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY
     ` as Array<{
       employeeName: string

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Eye, BookOpen, GraduationCap } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, BookOpen, GraduationCap, Search, Filter } from "lucide-react"
 
 interface Course {
   id: string
@@ -35,6 +35,10 @@ export default function AdminTestsPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTest, setEditingTest] = useState<Test | null>(null)
+  const [filterSearch, setFilterSearch] = useState<string>("") 
+  const [filterCourse, setFilterCourse] = useState<string>("all")
+  const [filterType, setFilterType] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
   const [formData, setFormData] = useState({
     courseId: "",
     type: "pretest",
@@ -158,6 +162,21 @@ export default function AdminTestsPage() {
     setEditingTest(null)
   }
 
+  const filteredTests = tests.filter(test => {
+    const matchesSearch = !filterSearch || 
+      test.title.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      test.description?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      test.course.title.toLowerCase().includes(filterSearch.toLowerCase())
+    
+    const matchesCourse = filterCourse === "all" || test.courseId === filterCourse
+    const matchesType = filterType === "all" || test.type === filterType
+    const matchesStatus = filterStatus === "all" || 
+      (filterStatus === "active" && test.isActive) ||
+      (filterStatus === "inactive" && !test.isActive)
+    
+    return matchesSearch && matchesCourse && matchesType && matchesStatus
+  })
+
   const handleDialogChange = (open: boolean) => {
     setDialogOpen(open)
     if (!open) {
@@ -268,11 +287,87 @@ export default function AdminTestsPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <Filter className="h-5 w-5" />
+            <span>กรองข้อมูล</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="search">ค้นหา</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="ค้นหาชื่อแบบทดสอบ..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            {/* Course Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="course">หลักสูตร</Label>
+              <Select value={filterCourse} onValueChange={setFilterCourse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกหลักสูตร" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">หลักสูตรทั้งหมด</SelectItem>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Type Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="type">ประเภท</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกประเภท" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ประเภททั้งหมด</SelectItem>
+                  <SelectItem value="pretest">ก่อนเรียน</SelectItem>
+                  <SelectItem value="posttest">หลังเรียน</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="status">สถานะ</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกสถานะ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะทั้งหมด</SelectItem>
+                  <SelectItem value="active">เปิดใช้งาน</SelectItem>
+                  <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>รายการแบบทดสอบ</CardTitle>
           <CardDescription>
-            แบบทดสอบทั้งหมดในระบบ ({tests.length} แบบทดสอบ)
+            แสดง {filteredTests.length} จาก {tests.length} แบบทดสอบ
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -340,7 +435,7 @@ export default function AdminTestsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tests.map((test) => (
+                {filteredTests.map((test) => (
                   <TableRow key={test.id}>
                     <TableCell>
                       <div>
