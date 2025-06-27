@@ -16,6 +16,13 @@ export async function GET(request: NextRequest) {
           isActive: true // Only show active courses to users
         },
         include: {
+          group: {
+            select: {
+              id: true,
+              title: true,
+              description: true
+            }
+          },
           tests: {
             where: { deletedAt: null },
             select: {
@@ -25,9 +32,19 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        orderBy: {
-          createdAt: "desc"
-        }
+        orderBy: [
+          {
+            group: {
+              order: "asc"
+            }
+          },
+          {
+            order: "asc"
+          },
+          {
+            createdAt: "desc"
+          }
+        ]
       })
 
       // Get user's progress for each course
@@ -88,9 +105,28 @@ export async function GET(request: NextRequest) {
         where: {
           deletedAt: null
         },
-        orderBy: {
-          createdAt: "desc"
-        }
+        include: {
+          group: {
+            select: {
+              id: true,
+              title: true,
+              description: true
+            }
+          }
+        },
+        orderBy: [
+          {
+            group: {
+              order: "asc"
+            }
+          },
+          {
+            order: "asc"
+          },
+          {
+            createdAt: "desc"
+          }
+        ]
       })
 
       return NextResponse.json(courses)
@@ -107,7 +143,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, description, contentType, contentUrl, contentSource = "url", contentFile = null, isActive = true } = body
+    const { title, description, contentType, contentUrl, contentSource = "url", contentFile = null, isActive = true, groupId = null, order = 0 } = body
 
     // Validate content type
     if (!["video", "pdf", "powerpoint"].includes(contentType)) {
@@ -144,7 +180,9 @@ export async function POST(request: NextRequest) {
         contentUrl,
         contentSource,
         contentFile,
-        isActive
+        isActive,
+        groupId,
+        order
       }
     })
 

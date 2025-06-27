@@ -9,7 +9,7 @@ async function create1076706004() {
     // Create employee
     const employee = await prisma.employee.create({
       data: {
-        idEmp: '1076706004',
+        idEmp: '1234',
         name: 'นายทดสอบ ระบบ',
         section: 'Management',
         department: 'IT',

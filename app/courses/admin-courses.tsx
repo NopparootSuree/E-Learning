@@ -13,6 +13,14 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Eye, Video, FileText, Upload, GraduationCap, File, Search, Filter } from "lucide-react"
 
+interface Group {
+  id: string
+  title: string
+  description?: string
+  order: number
+  isActive: boolean
+}
+
 interface Course {
   id: string
   title: string
@@ -24,10 +32,13 @@ interface Course {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  groupId: string | null
+  order: number
 }
 
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
@@ -36,18 +47,34 @@ export default function AdminCoursesPage() {
     description: "",
     contentType: "video",
     contentUrl: "",
-    contentSource: "upload", // เปลี่ยนเป็น upload เป็น default
+    contentSource: "upload",
     contentFile: "",
-    isActive: true
+    isActive: true,
+    groupId: "none",
+    order: 0
   })
   const [uploadingFile, setUploadingFile] = useState(false)
   const [filterSearch, setFilterSearch] = useState<string>("") 
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterType, setFilterType] = useState<string>("all")
+  const [filterGroup, setFilterGroup] = useState<string>("all")
 
   useEffect(() => {
     fetchCourses()
+    fetchGroups()
   }, [])
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch("/api/groups")
+      if (response.ok) {
+        const data = await response.json()
+        setGroups(data)
+      }
+    } catch (error) {
+      console.error("Error fetching groups:", error)
+    }
+  }
 
   const fetchCourses = async () => {
     try {
@@ -70,10 +97,16 @@ export default function AdminCoursesPage() {
       const url = editingCourse ? `/api/courses/${editingCourse.id}` : "/api/courses"
       const method = editingCourse ? "PUT" : "POST"
 
+      // Convert "none" to null for groupId
+      const submitData = {
+        ...formData,
+        groupId: formData.groupId === "none" ? null : formData.groupId
+      }
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       })
 
       if (response.ok) {
@@ -95,7 +128,9 @@ export default function AdminCoursesPage() {
       contentUrl: course.contentUrl || "",
       contentSource: course.contentSource,
       contentFile: course.contentFile || "",
-      isActive: course.isActive
+      isActive: course.isActive,
+      groupId: course.groupId || "none",
+      order: course.order || 0
     })
     setDialogOpen(true)
   }
@@ -170,9 +205,11 @@ export default function AdminCoursesPage() {
       description: "",
       contentType: "video",
       contentUrl: "",
-      contentSource: "upload", // เปลี่ยนเป็น upload เป็น default
+      contentSource: "upload",
       contentFile: "",
-      isActive: true
+      isActive: true,
+      groupId: "none",
+      order: 0
     })
     setEditingCourse(null)
   }
@@ -188,7 +225,11 @@ export default function AdminCoursesPage() {
     
     const matchesType = filterType === "all" || course.contentType === filterType
     
-    return matchesSearch && matchesStatus && matchesType
+    const matchesGroup = filterGroup === "all" || 
+      (filterGroup === "no-group" && !course.groupId) ||
+      course.groupId === filterGroup
+    
+    return matchesSearch && matchesStatus && matchesType && matchesGroup
   })
 
   return (
@@ -235,6 +276,40 @@ export default function AdminCoursesPage() {
                   placeholder="กรอกรายละเอียดหลักสูตร"
                   rows={3}
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="groupId">กลุ่มหลักสูตร</Label>
+                  <Select 
+                    value={formData.groupId} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, groupId: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="เลือกกลุ่ม (ไม่บังคับ)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">ไม่ระบุกลุ่ม</SelectItem>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="order">ลำดับในกลุ่ม</Label>
+                  <Input
+                    id="order"
+                    type="number"
+                    value={formData.order}
+                    onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -360,7 +435,7 @@ export default function AdminCoursesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search Filter */}
             <div className="space-y-2">
               <Label htmlFor="search">ค้นหา</Label>
@@ -374,6 +449,25 @@ export default function AdminCoursesPage() {
                   className="pl-10"
                 />
               </div>
+            </div>
+            
+            {/* Group Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="group">กลุ่มหลักสูตร</Label>
+              <Select value={filterGroup} onValueChange={setFilterGroup}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกกลุ่ม" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">กลุ่มทั้งหมด</SelectItem>
+                  <SelectItem value="no-group">ไม่ระบุกลุ่ม</SelectItem>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             {/* Status Filter */}
@@ -464,6 +558,7 @@ export default function AdminCoursesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ชื่อหลักสูตร</TableHead>
+                  <TableHead>กลุ่ม</TableHead>
                   <TableHead>ประเภท</TableHead>
                   <TableHead>สถานะ</TableHead>
                   <TableHead>วันที่สร้าง</TableHead>
@@ -471,59 +566,76 @@ export default function AdminCoursesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCourses.map((course) => (
-                  <TableRow key={course.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{course.title}</div>
-                        {course.description && (
-                          <div className="text-sm text-muted-foreground line-clamp-1">
-                            {course.description}
+                {filteredCourses.map((course) => {
+                  const courseGroup = groups.find(g => g.id === course.groupId)
+                  return (
+                    <TableRow key={course.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{course.title}</div>
+                          {course.description && (
+                            <div className="text-sm text-muted-foreground line-clamp-1">
+                              {course.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {courseGroup ? (
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="text-xs">
+                              {courseGroup.title}
+                            </Badge>
+                            {course.order > 0 && (
+                              <span className="text-xs text-gray-500">#{course.order}</span>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        {course.contentType === "video" ? (
-                          <Video className="h-4 w-4 text-blue-500" />
-                        ) : course.contentType === "pdf" ? (
-                          <File className="h-4 w-4 text-red-500" />
                         ) : (
-                          <FileText className="h-4 w-4 text-green-500" />
+                          <span className="text-xs text-gray-400">ไม่ระบุกลุ่ม</span>
                         )}
-                        <span className="capitalize">{course.contentType}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={course.isActive ? "default" : "secondary"}
-                        className="cursor-pointer"
-                        onClick={() => toggleStatus(course)}
-                      >
-                        {course.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(course.createdAt).toLocaleDateString("th-TH")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Link href={`/courses/${course.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          {course.contentType === "video" ? (
+                            <Video className="h-4 w-4 text-blue-500" />
+                          ) : course.contentType === "pdf" ? (
+                            <File className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-green-500" />
+                          )}
+                          <span className="capitalize">{course.contentType}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={course.isActive ? "default" : "secondary"}
+                          className="cursor-pointer"
+                          onClick={() => toggleStatus(course)}
+                        >
+                          {course.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(course.createdAt).toLocaleDateString("th-TH")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Link href={`/courses/${course.id}`}>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(course.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <Button variant="outline" size="sm" onClick={() => handleDelete(course.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </CardContent>

@@ -14,7 +14,8 @@ import {
   Settings,
   Download,
   TrendingUp,
-  X
+  X,
+  FolderOpen
 } from "lucide-react"
 
 interface SidebarProps {
@@ -40,6 +41,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const adminMenus = [
     { href: "/", label: "หน้าแรก", icon: Home },
+    { href: "/admin/groups", label: "จัดการกลุ่มหลักสูตร", icon: FolderOpen },
     { href: "/courses", label: "จัดการหลักสูตร", icon: BookOpen },
     { href: "/employees", label: "จัดการพนักงาน", icon: Users },
     { href: "/admin/tests", label: "จัดการแบบทดสอบ", icon: HelpCircle },

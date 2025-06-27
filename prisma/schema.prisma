@@ -95,21 +95,41 @@ model Employee {
   @@map("EL_EMPLOYEES")
 }
 
-// Course model
-model Course {
+// Group model (กลุ่มหลักสูตร)
+model Group {
   id          String    @id @default(cuid()) @map("ID")
   title       String    @map("TITLE")
   description String?   @map("DESCRIPTION")
-  contentType String    @map("CONTENT_TYPE") // "video" or "pdf"
-  contentUrl  String?   @map("CONTENT_URL") // URL for external content
-  contentSource String  @default("url") @map("CONTENT_SOURCE") // "url" or "upload"
-  contentFile String?   @map("CONTENT_FILE") // Path to uploaded file (video or PDF)
+  order       Int       @default(0) @map("ORDER")
   isActive    Boolean   @default(true) @map("IS_ACTIVE")
   createdAt   DateTime  @default(now()) @map("CREATED_AT")
   updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
   deletedAt   DateTime? @map("DELETED_AT")
 
   // Relations
+  courses Course[]
+
+  @@map("EL_GROUPS")
+}
+
+// Course model
+model Course {
+  id          String    @id @default(cuid()) @map("ID")
+  groupId     String?   @map("GROUP_ID") // เชื่อมโยงกับ Group
+  title       String    @map("TITLE")
+  description String?   @map("DESCRIPTION")
+  contentType String    @map("CONTENT_TYPE") // "video" or "pdf"
+  contentUrl  String?   @map("CONTENT_URL") // URL for external content
+  contentSource String  @default("url") @map("CONTENT_SOURCE") // "url" or "upload"
+  contentFile String?   @map("CONTENT_FILE") // Path to uploaded file (video or PDF)
+  order       Int       @default(0) @map("ORDER") // ลำดับใน Group
+  isActive    Boolean   @default(true) @map("IS_ACTIVE")
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
+
+  // Relations
+  group          Group?          @relation(fields: [groupId], references: [id])
   tests          Test[]
   courseAttempts CourseAttempt[]
   scores         Score[]

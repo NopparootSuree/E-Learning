@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
       where: { deletedAt: null }
     })
 
+    // Total groups
+    const totalGroups = await prisma.group.count({
+      where: { deletedAt: null }
+    })
+
     // Total completions
     const totalCompletions = await prisma.score.count({
       where: {
@@ -81,20 +86,23 @@ export async function GET(request: NextRequest) {
       percentage: Number(dept.total) > 0 ? Math.round((Number(dept.completed) / Number(dept.total)) * 100) : 0
     }))
 
-    // Scores by course
+    // Scores by course and group
     const scoresByCourse = await prisma.$queryRaw`
       SELECT 
         c.TITLE as courseTitle,
+        ISNULL(g.TITLE, 'ไม่ระบุกลุ่ม') as groupTitle,
         AVG(CAST(s.PRE_TEST_SCORE as FLOAT)) as averagePreTest,
         AVG(CAST(s.POST_TEST_SCORE as FLOAT)) as averagePostTest,
         COUNT(CASE WHEN s.COMPLETED_AT IS NOT NULL THEN 1 END) as completions
       FROM EL_COURSES c
+      LEFT JOIN EL_GROUPS g ON c.GROUP_ID = g.ID AND g.DELETED_AT IS NULL
       LEFT JOIN EL_SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
       WHERE c.DELETED_AT IS NULL
-      GROUP BY c.ID, c.TITLE
-      ORDER BY c.TITLE
+      GROUP BY c.ID, c.TITLE, g.TITLE
+      ORDER BY g.TITLE, c.TITLE
     ` as Array<{
       courseTitle: string
+      groupTitle: string
       averagePreTest: number | null
       averagePostTest: number | null
       completions: bigint
@@ -102,9 +110,35 @@ export async function GET(request: NextRequest) {
 
     const scoresByCourseFormatted = scoresByCourse.map(course => ({
       courseTitle: course.courseTitle,
+      groupTitle: course.groupTitle,
       averagePreTest: Math.round(course.averagePreTest || 0),
       averagePostTest: Math.round(course.averagePostTest || 0),
       completions: Number(course.completions)
+    }))
+
+    // Completion by group
+    const completionByGroup = await prisma.$queryRaw`
+      SELECT 
+        ISNULL(g.TITLE, 'ไม่ระบุกลุ่ม') as groupTitle,
+        COUNT(DISTINCT c.ID) as totalCourses,
+        COUNT(DISTINCT CASE WHEN s.COMPLETED_AT IS NOT NULL THEN s.COURSE_ID END) as completedCourses
+      FROM EL_COURSES c
+      LEFT JOIN EL_GROUPS g ON c.GROUP_ID = g.ID AND g.DELETED_AT IS NULL
+      LEFT JOIN EL_SCORES s ON c.ID = s.COURSE_ID AND s.DELETED_AT IS NULL
+      WHERE c.DELETED_AT IS NULL
+      GROUP BY g.TITLE
+      ORDER BY g.TITLE
+    ` as Array<{
+      groupTitle: string
+      totalCourses: bigint
+      completedCourses: bigint
+    }>
+
+    const completionByGroupFormatted = completionByGroup.map(group => ({
+      groupTitle: group.groupTitle,
+      totalCourses: Number(group.totalCourses),
+      completedCourses: Number(group.completedCourses),
+      percentage: Number(group.totalCourses) > 0 ? Math.round((Number(group.completedCourses) / Number(group.totalCourses)) * 100) : 0
     }))
 
     // Top performers
@@ -151,9 +185,11 @@ export async function GET(request: NextRequest) {
     const reportData = {
       totalEmployees,
       totalCourses,
+      totalGroups,
       totalCompletions,
       averageScore,
       completionByDepartment: completionByDepartmentFormatted,
+      completionByGroup: completionByGroupFormatted,
       scoresByCourse: scoresByCourseFormatted,
       completionTrend,
       topPerformers: topPerformersFormatted
