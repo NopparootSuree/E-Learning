@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -52,23 +52,7 @@ export default function ScoresPage() {
   
   const isAdmin = session?.user?.role === "admin"
 
-  useEffect(() => {
-    if (session) {
-      fetchScores()
-      if (isAdmin) {
-        fetchEmployees()
-      }
-      fetchCourses()
-    }
-  }, [session])
-
-  useEffect(() => {
-    if (session) {
-      fetchScores()
-    }
-  }, [filterEmployee, filterCourse, filterSearch, filterStatus, session])
-
-  const fetchScores = async () => {
+  const fetchScores = useCallback(async () => {
     try {
       setLoading(true)
       let url = "/api/scores"
@@ -110,9 +94,9 @@ export default function ScoresPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isAdmin, filterEmployee, filterCourse, filterSearch, filterStatus])
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const response = await fetch("/api/employees")
       if (response.ok) {
@@ -122,9 +106,9 @@ export default function ScoresPage() {
     } catch (error) {
       console.error("Error fetching employees:", error)
     }
-  }
+  }, [])
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
       const response = await fetch("/api/courses")
       if (response.ok) {
@@ -134,7 +118,23 @@ export default function ScoresPage() {
     } catch (error) {
       console.error("Error fetching courses:", error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (session) {
+      fetchScores()
+      if (isAdmin) {
+        fetchEmployees()
+      }
+      fetchCourses()
+    }
+  }, [session, fetchScores, fetchEmployees, fetchCourses, isAdmin])
+
+  useEffect(() => {
+    if (session) {
+      fetchScores()
+    }
+  }, [filterEmployee, filterCourse, filterSearch, filterStatus, session, fetchScores])
 
   const getScoreColor = (score: number | null) => {
     if (score === null) return "text-muted-foreground"

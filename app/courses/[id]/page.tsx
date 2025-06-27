@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -61,13 +61,7 @@ export default function CourseDetailPage() {
   const [showDialog, setShowDialog] = useState(false)
   const [dialogContent, setDialogContent] = useState({ title: "", description: "" })
 
-  useEffect(() => {
-    if (params.id) {
-      fetchCourse()
-    }
-  }, [params.id])
-
-  const fetchCourse = async () => {
+  const fetchCourse = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/courses/${params.id}`)
@@ -117,7 +111,13 @@ export default function CourseDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, session?.user, router])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchCourse()
+    }
+  }, [params.id, fetchCourse])
 
   const getPreTest = () => course?.tests.find(test => test.type === "pretest")
   const getPostTest = () => course?.tests.find(test => test.type === "posttest")

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,11 +47,7 @@ export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState<string>("all")
 
-  useEffect(() => {
-    fetchReportData()
-  }, [dateRange])
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -69,7 +65,11 @@ export default function AdminReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    fetchReportData()
+  }, [fetchReportData])
 
   if (loading || !reportData) {
     return (

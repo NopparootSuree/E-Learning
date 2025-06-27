@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,16 +36,7 @@ export default function AdminQuestionsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedTest, setSelectedTest] = useState<string>("all")
 
-  useEffect(() => {
-    fetchQuestions()
-    fetchTests()
-  }, [])
-
-  useEffect(() => {
-    fetchQuestions()
-  }, [selectedTest])
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true)
       const url = selectedTest === "all" 
@@ -61,9 +52,9 @@ export default function AdminQuestionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedTest])
 
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
     try {
       const response = await fetch("/api/tests")
       if (response.ok) {
@@ -73,7 +64,16 @@ export default function AdminQuestionsPage() {
     } catch (error) {
       console.error("Error fetching tests:", error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchQuestions()
+    fetchTests()
+  }, [fetchQuestions, fetchTests])
+
+  useEffect(() => {
+    fetchQuestions()
+  }, [selectedTest, fetchQuestions])
 
   const getQuestionsByTest = () => {
     if (selectedTest === "all") {

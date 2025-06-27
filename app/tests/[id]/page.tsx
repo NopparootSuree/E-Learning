@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -52,13 +52,7 @@ export default function TestPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [submitted, setSubmitted] = useState(false)
 
-  useEffect(() => {
-    if (params.id) {
-      fetchTest()
-    }
-  }, [params.id])
-
-  const fetchTest = async () => {
+  const fetchTest = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/tests/${params.id}`)
@@ -75,7 +69,13 @@ export default function TestPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, router])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchTest()
+    }
+  }, [params.id, fetchTest])
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers(prev => 

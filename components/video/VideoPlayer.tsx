@@ -37,209 +37,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
   const inactivityTimeoutRef = useRef<NodeJS.Timeout>()
   const saveProgressIntervalRef = useRef<NodeJS.Timeout>()
 
-  // Load saved progress on mount
-  useEffect(() => {
-    loadProgress()
-  }, [courseId])
-
-  // Save progress before page unload (allow refresh but save position)
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isCompleted && (isPlaying || progress > 0)) {
-        // Force save current progress with sendBeacon for reliability
-        if (videoRef.current && duration > 0) {
-          const realCurrentTime = videoRef.current.currentTime
-          const realDuration = videoRef.current.duration || duration
-          const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
-          
-          const progressData = {
-            action: "update_progress",
-            currentTime: realCurrentTime,
-            progress: realProgress,
-            duration: Math.floor(realDuration),
-            isCompleted: realProgress >= 95
-          }
-          
-          // Use sendBeacon - works during page unload
-          const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
-          navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
-          
-        }
-        
-        // Show info message (optional - user can still leave)
-        e.returnValue = "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
-        return "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
-      }
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [isCompleted, isPlaying, progress])
-
-  // Optional: Show info when trying to refresh (but allow it)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isCompleted && (isPlaying || progress > 0)) {
-        // F5
-        if (e.key === 'F5') {
-          // Force save progress before refresh with sync request
-          if (videoRef.current && duration > 0) {
-            const realCurrentTime = videoRef.current.currentTime
-            const realDuration = videoRef.current.duration || duration
-            const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
-            
-            const progressData = {
-              action: "update_progress",
-              currentTime: realCurrentTime,
-              progress: realProgress,
-              duration: Math.floor(realDuration),
-              isCompleted: realProgress >= 95
-            }
-            
-            // Use sendBeacon for reliable saving during page unload
-            const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
-            navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
-            
-          }
-          return true // Allow refresh
-        }
-        
-        // Ctrl+R, Ctrl+F5
-        if (e.ctrlKey && (e.key === 'r' || e.key === 'R' || e.key === 'F5')) {
-          // Force save progress before refresh with sync request
-          if (videoRef.current && duration > 0) {
-            const realCurrentTime = videoRef.current.currentTime
-            const realDuration = videoRef.current.duration || duration
-            const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
-            
-            const progressData = {
-              action: "update_progress",
-              currentTime: realCurrentTime,
-              progress: realProgress,
-              duration: Math.floor(realDuration),
-              isCompleted: realProgress >= 95
-            }
-            
-            // Use sendBeacon for reliable saving during page unload
-            const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
-            navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
-            
-          }
-          return true // Allow refresh
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isCompleted, isPlaying, progress])
-
-  // Activity detection
-  useEffect(() => {
-    const handleActivity = () => {
-      setLastActivityTime(Date.now())
-      if (warningMessage && isTabActive) {
-        setWarningMessage("")
-        setIsPausedBySystem(false)
-      }
-    }
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
-    events.forEach(event => {
-      document.addEventListener(event, handleActivity, true)
-    })
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleActivity, true)
-      })
-    }
-  }, [warningMessage, isTabActive])
-
-  // Tab visibility detection
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const isActive = !document.hidden
-      setIsTabActive(isActive)
-      
-      if (!isActive && isPlaying) {
-        pauseVideo("เนื่องจากคุณออกจากหน้าต่างเบราว์เซอร์")
-        setIsPausedBySystem(true)
-      }
-    }
-
-    const handleWindowBlur = () => {
-      setIsTabActive(false)
-      if (isPlaying) {
-        pauseVideo("เนื่องจากคุณออกจากหน้าต่างเบราว์เซอร์")
-        setIsPausedBySystem(true)
-      }
-    }
-
-    const handleWindowFocus = () => {
-      setIsTabActive(true)
-      if (isPausedBySystem) {
-        setWarningMessage("")
-        setIsPausedBySystem(false)
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleWindowBlur)
-    window.addEventListener('focus', handleWindowFocus)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleWindowBlur)
-      window.removeEventListener('focus', handleWindowFocus)
-    }
-  }, [isPlaying, isPausedBySystem])
-
-  // Inactivity timer
-  useEffect(() => {
-    if (isPlaying && isTabActive) {
-      inactivityTimeoutRef.current = setTimeout(() => {
-        const timeSinceActivity = Date.now() - lastActivityTime
-        if (timeSinceActivity >= 5 * 60 * 1000) { // 5 minutes
-          pauseVideo("เนื่องจากไม่มีการโต้ตอบเป็นเวลา 5 นาที")
-          setIsPausedBySystem(true)
-        }
-      }, 5 * 60 * 1000)
-    }
-
-    return () => {
-      if (inactivityTimeoutRef.current) {
-        clearTimeout(inactivityTimeoutRef.current)
-      }
-    }
-  }, [isPlaying, lastActivityTime, isTabActive])
-
-  // Auto-save progress every 3 seconds for better accuracy
-  useEffect(() => {
-    if (isPlaying && duration > 0) {
-      saveProgressIntervalRef.current = setInterval(() => {
-        saveProgress()
-      }, 3000) // Save every 3 seconds for better resume accuracy
-    } else {
-      if (saveProgressIntervalRef.current) {
-        clearInterval(saveProgressIntervalRef.current)
-      }
-    }
-
-    return () => {
-      if (saveProgressIntervalRef.current) {
-        clearInterval(saveProgressIntervalRef.current)
-      }
-    }
-  }, [isPlaying, duration])
-
-  const loadProgress = async () => {
+  const loadProgress = useCallback(async () => {
     try {
       const response = await fetch(`/api/courses/${courseId}/progress`)
       if (response.ok) {
@@ -314,9 +112,9 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
     } catch (error) {
       console.error("Error loading progress:", error)
     }
-  }
+  }, [courseId])
 
-  const saveProgress = async () => {
+  const saveProgress = useCallback(async () => {
     if (!videoRef.current || duration === 0) return
 
     try {
@@ -347,9 +145,134 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
     } catch (error) {
       console.error("Error saving progress:", error)
     }
-  }
+  }, [courseId, duration, progress])
 
-  const pauseVideo = (reason?: string) => {
+  // Load saved progress on mount
+  useEffect(() => {
+    loadProgress()
+  }, [loadProgress])
+
+  // Save progress before page unload (allow refresh but save position)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isCompleted && (isPlaying || progress > 0)) {
+        // Force save current progress with sendBeacon for reliability
+        if (videoRef.current && duration > 0) {
+          const realCurrentTime = videoRef.current.currentTime
+          const realDuration = videoRef.current.duration || duration
+          const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
+          
+          const progressData = {
+            action: "update_progress",
+            currentTime: realCurrentTime,
+            progress: realProgress,
+            duration: Math.floor(realDuration),
+            isCompleted: realProgress >= 95
+          }
+          
+          // Use sendBeacon - works during page unload
+          const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
+          navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
+          
+        }
+        
+        // Show info message (optional - user can still leave)
+        e.returnValue = "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
+        return "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isCompleted, isPlaying, progress, courseId, duration])
+
+  // Optional: Show info when trying to refresh (but allow it)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isCompleted && (isPlaying || progress > 0)) {
+        // F5
+        if (e.key === 'F5') {
+          // Force save progress before refresh with sync request
+          if (videoRef.current && duration > 0) {
+            const realCurrentTime = videoRef.current.currentTime
+            const realDuration = videoRef.current.duration || duration
+            const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
+            
+            const progressData = {
+              action: "update_progress",
+              currentTime: realCurrentTime,
+              progress: realProgress,
+              duration: Math.floor(realDuration),
+              isCompleted: realProgress >= 95
+            }
+            
+            // Use sendBeacon for reliable saving during page unload
+            const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
+            navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
+            
+          }
+          return true // Allow refresh
+        }
+        
+        // Ctrl+R, Ctrl+F5
+        if (e.ctrlKey && (e.key === 'r' || e.key === 'R' || e.key === 'F5')) {
+          // Force save progress before refresh with sync request
+          if (videoRef.current && duration > 0) {
+            const realCurrentTime = videoRef.current.currentTime
+            const realDuration = videoRef.current.duration || duration
+            const realProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : progress
+            
+            const progressData = {
+              action: "update_progress",
+              currentTime: realCurrentTime,
+              progress: realProgress,
+              duration: Math.floor(realDuration),
+              isCompleted: realProgress >= 95
+            }
+            
+            // Use sendBeacon for reliable saving during page unload
+            const blob = new Blob([JSON.stringify(progressData)], { type: 'application/json' })
+            navigator.sendBeacon(`/api/courses/${courseId}/progress`, blob)
+            
+          }
+          return true // Allow refresh
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isCompleted, isPlaying, progress, courseId, duration])
+
+  // Activity detection
+  useEffect(() => {
+    const handleActivity = () => {
+      setLastActivityTime(Date.now())
+      if (warningMessage && isTabActive) {
+        setWarningMessage("")
+        setIsPausedBySystem(false)
+      }
+    }
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true)
+    })
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true)
+      })
+    }
+  }, [warningMessage, isTabActive])
+
+  const pauseVideo = useCallback((reason?: string) => {
     if (videoRef.current && isPlaying) {
       videoRef.current.pause()
       setIsPlaying(false)
@@ -358,7 +281,84 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
       }
       saveProgress()
     }
-  }
+  }, [isPlaying, saveProgress])
+
+  // Tab visibility detection
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isActive = !document.hidden
+      setIsTabActive(isActive)
+      
+      if (!isActive && isPlaying) {
+        pauseVideo("เนื่องจากคุณออกจากหน้าต่างเบราว์เซอร์")
+        setIsPausedBySystem(true)
+      }
+    }
+
+    const handleWindowBlur = () => {
+      setIsTabActive(false)
+      if (isPlaying) {
+        pauseVideo("เนื่องจากคุณออกจากหน้าต่างเบราว์เซอร์")
+        setIsPausedBySystem(true)
+      }
+    }
+
+    const handleWindowFocus = () => {
+      setIsTabActive(true)
+      if (isPausedBySystem) {
+        setWarningMessage("")
+        setIsPausedBySystem(false)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleWindowBlur)
+    window.addEventListener('focus', handleWindowFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleWindowBlur)
+      window.removeEventListener('focus', handleWindowFocus)
+    }
+  }, [isPlaying, isPausedBySystem, pauseVideo])
+
+  // Inactivity timer
+  useEffect(() => {
+    if (isPlaying && isTabActive) {
+      inactivityTimeoutRef.current = setTimeout(() => {
+        const timeSinceActivity = Date.now() - lastActivityTime
+        if (timeSinceActivity >= 5 * 60 * 1000) { // 5 minutes
+          pauseVideo("เนื่องจากไม่มีการโต้ตอบเป็นเวลา 5 นาที")
+          setIsPausedBySystem(true)
+        }
+      }, 5 * 60 * 1000)
+    }
+
+    return () => {
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current)
+      }
+    }
+  }, [isPlaying, lastActivityTime, isTabActive, pauseVideo])
+
+  // Auto-save progress every 3 seconds for better accuracy
+  useEffect(() => {
+    if (isPlaying && duration > 0) {
+      saveProgressIntervalRef.current = setInterval(() => {
+        saveProgress()
+      }, 3000) // Save every 3 seconds for better resume accuracy
+    } else {
+      if (saveProgressIntervalRef.current) {
+        clearInterval(saveProgressIntervalRef.current)
+      }
+    }
+
+    return () => {
+      if (saveProgressIntervalRef.current) {
+        clearInterval(saveProgressIntervalRef.current)
+      }
+    }
+  }, [isPlaying, duration, saveProgress])
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current && !isRestoringPosition) {
@@ -403,7 +403,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
         }
       }
     }
-  }, [courseId, isCompleted, onComplete, isRestoringPosition])
+  }, [courseId, isCompleted, onComplete, isRestoringPosition, saveProgress])
 
   const handlePlay = () => {
     if (!isTabActive) {
