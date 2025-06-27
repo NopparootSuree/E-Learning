@@ -25,8 +25,30 @@ export async function POST(
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    const body = await request.json()
-    const { action, progress, duration } = body
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      // Handle sendBeacon requests (might not be proper JSON)
+      const text = await request.text()
+      try {
+        body = JSON.parse(text)
+      } catch (e) {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+      }
+    }
+    
+    const { 
+      action, 
+      progress, 
+      duration, 
+      currentTime,
+      watchedDuration = 0,
+      lastActiveTime = new Date(),
+      isCompleted = false,
+      watchedSegments = []
+    } = body
+    
 
     // Find or create course attempt
     let courseAttempt = await prisma.courseAttempt.findFirst({
@@ -59,9 +81,27 @@ export async function POST(
         break
         
       case "update_progress":
+        // Store current video position and watched duration
         updateData.contentProgress = Math.min(Math.max(progress || 0, 0), 100)
-        if (duration) {
-          updateData.contentDuration = duration
+        
+        // Store currentTime as milliseconds to preserve precision
+        if (typeof currentTime === 'number' && currentTime >= 0) {
+          updateData.contentDuration = Math.floor(currentTime * 1000) // Store as milliseconds
+        }
+        
+        
+        // Check if video is actually completed (watched 95% or more)
+        if (progress >= 95 || isCompleted) {
+          updateData.contentCompletedAt = new Date()
+          updateData.contentProgress = 100
+          updateData.status = "content_viewed"
+        }
+        break
+        
+      case "pause_video":
+        // Save current position when paused
+        if (typeof currentTime === 'number' && currentTime >= 0) {
+          updateData.contentDuration = Math.floor(currentTime * 1000)
         }
         break
         
@@ -69,8 +109,8 @@ export async function POST(
         updateData.contentCompletedAt = new Date()
         updateData.contentProgress = 100
         updateData.status = "content_viewed"
-        if (duration) {
-          updateData.contentDuration = duration
+        if (typeof currentTime === 'number' && currentTime >= 0) {
+          updateData.contentDuration = Math.floor(currentTime * 1000)
         }
         break
         
@@ -128,11 +168,14 @@ export async function GET(
       }
     })
 
+    const resumeTime = courseAttempt?.contentDuration ? (courseAttempt.contentDuration / 1000) : 0 // Convert back to seconds
+
     return NextResponse.json({
       attempt: courseAttempt,
       hasStartedContent: !!courseAttempt?.contentStartedAt,
       hasCompletedContent: !!courseAttempt?.contentCompletedAt,
       contentProgress: courseAttempt?.contentProgress || 0,
+      currentTime: resumeTime, // Resume position in seconds
       status: courseAttempt?.status || "not_started"
     })
 

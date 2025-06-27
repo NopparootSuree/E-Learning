@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowLeft, Video, FileText, Play, BookOpen, CheckCircle, File } from "lucide-react"
+import VideoPlayer from "@/components/video/VideoPlayer"
 
 interface Test {
   id: string
@@ -143,6 +144,25 @@ export default function CourseDetailPage() {
     }
   }
   
+  // Auto-refresh progress every 10 seconds
+  useEffect(() => {
+    if (!loading && params.id) {
+      const interval = setInterval(async () => {
+        try {
+          const progressResponse = await fetch(`/api/courses/${params.id}/progress`)
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json()
+            setCourseProgress(progressData)
+          }
+        } catch (error) {
+          console.error('Error auto-refreshing progress:', error)
+        }
+      }, 5000) // Every 5 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [loading, params.id])
+  
   const handleVideoStart = () => {
     if (!courseProgress?.hasStartedContent) {
       updateProgress('start_content')
@@ -213,25 +233,22 @@ export default function CourseDetailPage() {
       }
       
       return (
-        <video 
-          controls 
-          className="w-full h-full rounded-lg"
-          preload="metadata"
-          onPlay={handleVideoStart}
-          onTimeUpdate={(e) => {
-            const video = e.target as HTMLVideoElement
-            handleVideoProgress(video.currentTime, video.duration)
+        <VideoPlayer
+          src={contentUrl}
+          courseId={params.id as string}
+          onComplete={() => {
+            setDialogContent({
+              title: "เรียนจบแล้ว!",
+              description: "คุณได้ดูวิดีโอครบถ้วนแล้ว ตอนนี้สามารถเข้าทำข้อสอบหลังเรียนได้"
+            })
+            setShowDialog(true)
+            // Refresh progress immediately
+            setTimeout(() => {
+              fetchCourse()
+            }, 1000)
           }}
-          onEnded={(e) => {
-            const video = e.target as HTMLVideoElement
-            handleVideoComplete(video.duration)
-          }}
-        >
-          <source src={contentUrl} type="video/mp4" />
-          <source src={contentUrl} type="video/webm" />
-          <source src={contentUrl} type="video/ogg" />
-          Your browser does not support the video tag.
-        </video>
+          className="w-full"
+        />
       )
     } else if (course.contentType === "pdf") {
       return (
@@ -373,26 +390,24 @@ export default function CourseDetailPage() {
                     )}
                     
                     {/* Video Progress Bar */}
-                    {courseProgress?.hasStartedContent && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>ความคืบหน้าการดูเนื้อหา</span>
-                          <span>{videoProgress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${videoProgress}%` }}
-                          ></div>
-                        </div>
-                        {isContentCompleted() && (
-                          <div className="flex items-center space-x-2 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-sm">ดูเนื้อหาการเรียนครบถ้วนแล้ว</span>
-                          </div>
-                        )}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>ความคืบหน้าการดูเนื้อหา</span>
+                        <span>{Math.round(courseProgress?.contentProgress || 0)}%</span>
                       </div>
-                    )}
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${courseProgress?.contentProgress || 0}%` }}
+                        ></div>
+                      </div>
+                      {isContentCompleted() && (
+                        <div className="flex items-center space-x-2 text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="text-sm">ดูเนื้อหาการเรียนครบถ้วนแล้ว</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
             </CardContent>
