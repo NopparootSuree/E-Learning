@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Play, Pause, Volume2, VolumeX, Maximize, AlertTriangle, Eye, EyeOff } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, AlertTriangle, Eye, EyeOff } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface VideoPlayerProps {
@@ -25,14 +25,11 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  
   // Activity tracking
   const [lastActivityTime, setLastActivityTime] = useState(Date.now())
   const [isTabActive, setIsTabActive] = useState(true)
   const [isPausedBySystem, setIsPausedBySystem] = useState(false)
   const [warningMessage, setWarningMessage] = useState("")
-  const [watchedSegments, setWatchedSegments] = useState<Array<{start: number, end: number}>>([])
   
   const inactivityTimeoutRef = useRef<NodeJS.Timeout>()
   const saveProgressIntervalRef = useRef<NodeJS.Timeout>()
@@ -43,74 +40,99 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
       if (response.ok) {
         const data = await response.json()
         
+        console.log("🔄 Loading progress data:", data)
+        
         // Set initial states
         setIsCompleted(data.hasCompletedContent)
         
-        // Set initial states only
+        const savedTime = data.currentTime || 0
+        const savedProgress = data.contentProgress || 0
         
-        // Always try to set saved position (even if currentTime is 0)
+        console.log("📍 Saved position - Time:", savedTime, "Progress:", savedProgress)
+        
+        // Always try to set saved position
         const trySetCurrentTime = () => {
-          if (videoRef.current && videoRef.current.readyState >= 2) {
-            const savedTime = data.currentTime || 0
-            const savedProgress = data.contentProgress || 0
+          if (videoRef.current) {
+            const readyState = videoRef.current.readyState
+            const duration = videoRef.current.duration
             
+            console.log("🎬 Video state - ReadyState:", readyState, "Duration:", duration)
             
-            // Set video position first - force it even if 0
-            if (savedTime > 0) {
-              setIsRestoringPosition(true) // Prevent onTimeUpdate interference
-              
-              const timeToSet = Math.min(savedTime, videoRef.current.duration || savedTime)
-              
-              // Multiple attempts to set currentTime
-              const setPosition = () => {
-                if (videoRef.current) {
-                  videoRef.current.currentTime = timeToSet
+            // Wait for at least metadata (readyState >= 1)
+            if (readyState >= 1 && duration > 0) {
+              // Set video position - allow seeking to any saved position
+              if (savedTime > 0) {
+                setIsRestoringPosition(true)
+                
+                const timeToSet = Math.min(savedTime, duration)
+                
+                console.log("⏯️ Setting video position to:", timeToSet)
+                
+                // Set position with retry mechanism
+                let retryCount = 0
+                const setPosition = () => {
+                  if (videoRef.current && retryCount < 5) {
+                    videoRef.current.currentTime = timeToSet
+                    retryCount++
+                    
+                    // Verify position was set
+                    setTimeout(() => {
+                      if (videoRef.current && Math.abs(videoRef.current.currentTime - timeToSet) > 1) {
+                        console.log("⚠️ Position not set correctly, retrying...", videoRef.current.currentTime, "vs", timeToSet)
+                        setPosition()
+                      } else {
+                        console.log("✅ Video position set successfully:", videoRef.current?.currentTime)
+                        setIsRestoringPosition(false)
+                      }
+                    }, 100)
+                  }
                 }
+                
+                // Try setting position
+                setPosition()
+                
+                // Also set component state
+                setCurrentTime(timeToSet)
               }
               
-              // Try setting immediately
-              setPosition()
+              // Set saved progress
+              if (savedProgress > 0) {
+                setProgress(savedProgress)
+              } else if (savedTime > 0) {
+                const calculatedProgress = (savedTime / duration) * 100
+                setProgress(calculatedProgress)
+              }
               
-              // Try again after small delay
-              setTimeout(() => {
-                setPosition()
-                setCurrentTime(timeToSet)
-                
-                // Final check and stop restoration mode
-                setTimeout(() => {
-                  setIsRestoringPosition(false)
-                }, 200)
-              }, 100)
+              setDuration(duration)
+              
+            } else {
+              // Retry when video loads more data
+              console.log("⏳ Video not ready, retrying in 200ms...")
+              setTimeout(trySetCurrentTime, 200)
             }
-            
-            // Use saved progress from database (VideoPlayer internal only)
-            if (savedProgress > 0) {
-              setProgress(savedProgress)
-            } else if (videoRef.current.duration > 0 && savedTime > 0) {
-              // Fallback: calculate from saved time
-              const calculatedProgress = (savedTime / videoRef.current.duration) * 100
-              setProgress(calculatedProgress)
-            }
-            
-            // Set duration to prevent progress reset
-            setDuration(videoRef.current.duration)
-            setCurrentTime(savedTime)
-          } else if (videoRef.current) {
-            // Retry after video loads
-            setTimeout(trySetCurrentTime, 100)
           }
         }
         
         if (videoRef.current) {
-          if (videoRef.current.readyState >= 2) {
+          // Try immediately if video is ready
+          if (videoRef.current.readyState >= 1) {
             trySetCurrentTime()
           } else {
-            videoRef.current.addEventListener('loadeddata', trySetCurrentTime, { once: true })
+            // Wait for video events
+            console.log("⏳ Waiting for video to load...")
+            const handleVideoReady = () => {
+              console.log("🎬 Video ready event fired")
+              trySetCurrentTime()
+            }
+            
+            videoRef.current.addEventListener('loadedmetadata', handleVideoReady, { once: true })
+            videoRef.current.addEventListener('loadeddata', handleVideoReady, { once: true })
+            videoRef.current.addEventListener('canplay', handleVideoReady, { once: true })
           }
         }
       }
     } catch (error) {
-      console.error("Error loading progress:", error)
+      console.error("❌ Error loading progress:", error)
     }
   }, [courseId])
 
@@ -177,7 +199,6 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
         }
         
         // Show info message (optional - user can still leave)
-        e.returnValue = "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
         return "ความคืบหน้าจะถูกบันทึก เมื่อกลับมาจะเล่นต่อจากจุดที่หยุดไว้"
       }
     }
@@ -449,7 +470,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
   }
 
   // Prevent seeking/skipping - must watch sequentially
-  const handleSeeking = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+  const handleSeeking = () => {
     if (videoRef.current && !isCompleted) {
       // Strict rule: can only seek backwards, never forward
       const seekTime = videoRef.current.currentTime
@@ -492,9 +513,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
             ref={videoRef}
             src={src}
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={() => {
-              setIsLoading(false)
-            }}
+            onLoadedMetadata={() => {}}
             onLoadedData={() => {}}
             onSeeking={handleSeeking}
             onSeeked={() => {}}
@@ -571,7 +590,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
                 )}
 
                 <Badge variant="outline" className="text-white border-white text-xs">
-                  {Math.round(progress)}%
+                  {progress.toFixed(2)}%
                 </Badge>
               </div>
             </div>
@@ -586,7 +605,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
                 <AlertTriangle className="h-4 w-4 mr-2" />
                 <span>
                   <strong>ข้อปฏิบัติ:</strong> คุณต้องดูวิดีโอให้จบ 95% จึงจะผ่านบทเรียน 
-                  {progress > 0 && ` (ปัจจุบันดูแล้ว ${Math.round(progress)}%)`}
+                  {progress > 0 && ` (ปัจจุบันดูแล้ว ${progress.toFixed(2)}%)`}
                 </span>
               </div>
               <div className="mt-1 text-yellow-700 text-xs">

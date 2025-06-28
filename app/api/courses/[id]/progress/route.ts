@@ -27,15 +27,10 @@ export async function POST(
 
     let body
     try {
-      body = await request.json()
-    } catch (error) {
-      // Handle sendBeacon requests (might not be proper JSON)
       const text = await request.text()
-      try {
-        body = JSON.parse(text)
-      } catch (e) {
-        return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
-      }
+      body = JSON.parse(text)
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
     }
     
     const { 

@@ -272,7 +272,7 @@ export default function UserCoursesPage() {
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span>ความก้าวหน้า</span>
-                              <span>{Math.round(progress)}%</span>
+                              <span>{progress.toFixed(2)}%</span>
                             </div>
                             <Progress value={progress} className="h-2" />
                           </div>
@@ -286,7 +286,7 @@ export default function UserCoursesPage() {
                               <span>Pre-test</span>
                               {course.userProgress?.preTestScore && (
                                 <span className="text-muted-foreground">
-                                  ({course.userProgress.preTestScore}%)
+                                  ({course.userProgress.preTestScore.toFixed(2)}%)
                                 </span>
                               )}
                             </div>
@@ -297,7 +297,7 @@ export default function UserCoursesPage() {
                               <span>เนื้อหาการเรียน</span>
                               {course.userProgress?.contentProgress && course.userProgress.contentProgress > 0 && !course.userProgress.contentCompleted && (
                                 <span className="text-muted-foreground">
-                                  ({course.userProgress.contentProgress}%)
+                                  ({course.userProgress.contentProgress.toFixed(2)}%)
                                 </span>
                               )}
                             </div>
@@ -308,7 +308,7 @@ export default function UserCoursesPage() {
                               <span>Post-test</span>
                               {course.userProgress?.postTestScore && (
                                 <span className="text-muted-foreground">
-                                  ({course.userProgress.postTestScore}%)
+                                  ({course.userProgress.postTestScore.toFixed(2)}%)
                                 </span>
                               )}
                             </div>

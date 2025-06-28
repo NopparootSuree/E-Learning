@@ -153,7 +153,7 @@ export default function ScoresPage() {
   const getCompletionStats = () => {
     const completed = scores.filter(s => s.completedAt).length
     const total = scores.length
-    return { completed, total, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 }
+    return { completed, total, percentage: total > 0 ? (completed / total) * 100 : 0 }
   }
 
   const getAverageScores = () => {
@@ -162,9 +162,9 @@ export default function ScoresPage() {
     const validFinalScores = scores.filter(s => s.finalScore !== null).map(s => s.finalScore!)
 
     return {
-      preTest: validPreScores.length > 0 ? Math.round(validPreScores.reduce((a, b) => a + b, 0) / validPreScores.length) : 0,
-      postTest: validPostScores.length > 0 ? Math.round(validPostScores.reduce((a, b) => a + b, 0) / validPostScores.length) : 0,
-      final: validFinalScores.length > 0 ? Math.round(validFinalScores.reduce((a, b) => a + b, 0) / validFinalScores.length) : 0
+      preTest: validPreScores.length > 0 ? (validPreScores.reduce((a, b) => a + b, 0) / validPreScores.length) : 0,
+      postTest: validPostScores.length > 0 ? (validPostScores.reduce((a, b) => a + b, 0) / validPostScores.length) : 0,
+      final: validFinalScores.length > 0 ? (validFinalScores.reduce((a, b) => a + b, 0) / validFinalScores.length) : 0
     }
   }
 
@@ -208,7 +208,7 @@ export default function ScoresPage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.completed}/{stats.total}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.percentage}% เสร็จสมบูรณ์
+              {stats.percentage.toFixed(2)}% เสร็จสมบูรณ์
             </p>
             <Progress value={stats.percentage} className="mt-2" />
           </CardContent>
@@ -221,7 +221,7 @@ export default function ScoresPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${getScoreColor(averages.preTest)}`}>
-              {averages.preTest}%
+              {averages.preTest.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
               แบบทดสอบก่อนเรียน
@@ -236,7 +236,7 @@ export default function ScoresPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${getScoreColor(averages.postTest)}`}>
-              {averages.postTest}%
+              {averages.postTest.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
               แบบทดสอบหลังเรียน
@@ -251,7 +251,7 @@ export default function ScoresPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${getScoreColor(averages.final)}`}>
-              {averages.final}%
+              {averages.final.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
               คะแนนสุดท้าย
@@ -477,11 +477,11 @@ export default function ScoresPage() {
                     <TableCell className="text-center">
                       <div className="space-y-1">
                         <span className={`font-medium ${getScoreColor(score.preTestScore)}`}>
-                          {score.preTestScore !== null ? `${score.preTestScore}` : "-"}
+                          {score.preTestScore !== null ? `${score.preTestScore.toFixed(2)}` : "-"}
                         </span>
                         {score.preTestScore !== null && (
                           <div className="text-xs text-muted-foreground">
-                            ({score.preTestScore}%)
+                            ({score.preTestScore.toFixed(2)}%)
                           </div>
                         )}
                       </div>
@@ -489,11 +489,11 @@ export default function ScoresPage() {
                     <TableCell className="text-center">
                       <div className="space-y-1">
                         <span className={`font-medium ${getScoreColor(score.postTestScore)}`}>
-                          {score.postTestScore !== null ? `${score.postTestScore}` : "-"}
+                          {score.postTestScore !== null ? `${score.postTestScore.toFixed(2)}` : "-"}
                         </span>
                         {score.postTestScore !== null && (
                           <div className="text-xs text-muted-foreground">
-                            ({score.postTestScore}%)
+                            ({score.postTestScore.toFixed(2)}%)
                           </div>
                         )}
                       </div>
@@ -501,11 +501,11 @@ export default function ScoresPage() {
                     <TableCell className="text-center">
                       <div className="space-y-1">
                         <span className={`font-bold ${getScoreColor(score.finalScore)}`}>
-                          {score.finalScore !== null ? `${score.finalScore}` : "-"}
+                          {score.finalScore !== null ? `${score.finalScore.toFixed(2)}` : "-"}
                         </span>
                         {score.finalScore !== null && (
                           <div className="text-xs text-muted-foreground">
-                            ({score.finalScore}%)
+                            ({score.finalScore.toFixed(2)}%)
                           </div>
                         )}
                       </div>

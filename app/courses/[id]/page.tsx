@@ -393,7 +393,7 @@ export default function CourseDetailPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>ความคืบหน้าการดูเนื้อหา</span>
-                        <span>{Math.round(courseProgress?.contentProgress || 0)}%</span>
+                        <span>{(courseProgress?.contentProgress || 0).toFixed(2)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -455,7 +455,7 @@ export default function CourseDetailPage() {
                       </div>
                       {preTestAttempt?.score && (
                         <div className="text-center text-sm text-muted-foreground mt-1">
-                          คะแนน: {preTestAttempt.score}%
+                          คะแนน: {preTestAttempt.score.toFixed(2)}%
                         </div>
                       )}
                     </div>
@@ -519,7 +519,7 @@ export default function CourseDetailPage() {
                       </div>
                       {postTestAttempt?.score && (
                         <div className="text-center text-sm text-muted-foreground mt-1">
-                          คะแนน: {postTestAttempt.score}%
+                          คะแนน: {postTestAttempt.score.toFixed(2)}%
                         </div>
                       )}
                     </div>
