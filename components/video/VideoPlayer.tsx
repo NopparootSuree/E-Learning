@@ -66,23 +66,43 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
           const video = videoRef.current
           
           const setPosition = () => {
-            if (video.duration > 0) {
-              const timeToSet = Math.min(savedTime, video.duration)
+            if (video.duration > 0 && savedTime > 0) {
+              const timeToSet = Math.min(savedTime, video.duration - 0.1) // Leave small buffer
               video.currentTime = timeToSet
               setCurrentTime(timeToSet)
+              setIsRestoringPosition(false)
+              
+              // Verify position was set correctly
+              setTimeout(() => {
+                if (Math.abs(video.currentTime - timeToSet) > 1) {
+                  console.warn('Resume position accuracy issue:', {
+                    expected: timeToSet,
+                    actual: video.currentTime
+                  })
+                }
+              }, 100)
             }
           }
+          
+          setIsRestoringPosition(true)
           
           // If video already has duration, set immediately
           if (video.duration > 0) {
             setPosition()
           } else {
-            // Wait for duration to be available
+            // Wait for duration to be available with timeout
+            let attempts = 0
+            const maxAttempts = 50 // 5 seconds max
+            
             const checkDuration = () => {
+              attempts++
               if (video.duration > 0) {
                 setPosition()
-              } else {
+              } else if (attempts < maxAttempts) {
                 setTimeout(checkDuration, 100)
+              } else {
+                console.warn('Video duration not available after timeout')
+                setIsRestoringPosition(false)
               }
             }
             checkDuration()
@@ -103,34 +123,74 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
     }
   }, [courseId, hasLoadedProgress])
 
-  const saveProgress = useCallback(async () => {
+  // Debounced save progress
+  const pendingProgressRef = useRef<{
+    currentTime: number
+    progress: number
+    duration: number
+    isCompleted: boolean
+  } | null>(null)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const lastSaveTimeRef = useRef<number>(0)
+
+  const saveProgress = useCallback(async (forceImmediate = false) => {
     if (!videoRef.current || duration === 0) return
 
-    try {
-      // Get real-time values from video element
-      const realCurrentTime = videoRef.current.currentTime
-      const realDuration = videoRef.current.duration || duration
-      const calculatedProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : 0
-      
-      // Use the highest progress value (prevents going backwards)
-      const realProgress = Math.max(calculatedProgress, progress)
-      const response = await fetch(`/api/courses/${courseId}/progress`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update_progress",
-          currentTime: realCurrentTime,
-          progress: realProgress,
-          duration: Math.floor(realDuration),
-          isCompleted: realProgress >= 95
+    // Get real-time values from video element
+    const realCurrentTime = videoRef.current.currentTime
+    const realDuration = videoRef.current.duration || duration
+    const calculatedProgress = realDuration > 0 ? (realCurrentTime / realDuration) * 100 : 0
+    
+    // Use the highest progress value (prevents going backwards)
+    const realProgress = Math.max(calculatedProgress, progress)
+
+    // Store pending progress data
+    pendingProgressRef.current = {
+      currentTime: realCurrentTime,
+      progress: realProgress,
+      duration: Math.floor(realDuration),
+      isCompleted: realProgress >= 95
+    }
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Force immediate save if requested or if it's been more than 10 seconds
+    const now = Date.now()
+    const timeSinceLastSave = now - lastSaveTimeRef.current
+    const shouldSaveImmediately = forceImmediate || timeSinceLastSave >= 10000
+
+    if (shouldSaveImmediately) {
+      await executeSave()
+    } else {
+      // Debounce for 2 seconds
+      saveTimeoutRef.current = setTimeout(executeSave, 2000)
+    }
+
+    async function executeSave() {
+      if (!pendingProgressRef.current) return
+
+      try {
+        const response = await fetch(`/api/courses/${courseId}/progress`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update_progress",
+            ...pendingProgressRef.current
+          })
         })
-      })
-      
-      if (!response.ok) {
-        console.error("Failed to save progress:", response.statusText)
+        
+        if (response.ok) {
+          lastSaveTimeRef.current = Date.now()
+          pendingProgressRef.current = null
+        } else {
+          console.error("Failed to save progress:", response.statusText)
+        }
+      } catch (error) {
+        console.error("Error saving progress:", error)
       }
-    } catch (error) {
-      console.error("Error saving progress:", error)
     }
   }, [courseId, duration, progress])
 
@@ -337,7 +397,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
     if (isPlaying && duration > 0) {
       saveProgressIntervalRef.current = setInterval(() => {
         saveProgress()
-      }, 3000) // Save every 3 seconds for better resume accuracy
+      }, 5000) // Save every 5 seconds with debouncing
     } else {
       if (saveProgressIntervalRef.current) {
         clearInterval(saveProgressIntervalRef.current)
@@ -367,28 +427,16 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
           const newProgress = Math.max(progressPercent, prevProgress)
           return newProgress
         })
-        // Save progress every 10% or every 30 seconds
-        if (Math.floor(progressPercent) % 10 === 0 && Math.floor(progressPercent) !== Math.floor((current - 1) / total * 100)) {
-          saveProgress()
-        }
+        // Save progress automatically (debounced)
+        saveProgress()
         
         // Check completion (95% watched)
         if (progressPercent >= 95 && !isCompleted) {
           setIsCompleted(true)
           onComplete?.()
           
-          // Save completion
-          fetch(`/api/courses/${courseId}/progress`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "complete_content",
-              currentTime: current, // Keep decimal precision
-              progress: 100,
-              duration: Math.floor(total),
-              isCompleted: true
-            })
-          }).catch(console.error)
+          // Save completion immediately
+          saveProgress(true)
         }
       }
     }

@@ -9,43 +9,58 @@ export async function GET(request: NextRequest) {
     const session = await auth()
     
     if (userView === 'true' && session?.user?.employeeId) {
-      // User view - include progress data
-      const courses = await prisma.course.findMany({
+      // User view - only show enrolled courses
+      const enrolledCourses = await prisma.courseEnrollment.findMany({
         where: {
+          employeeId: session.user.employeeId,
+          status: 'active',
           deletedAt: null,
-          isActive: true // Only show active courses to users
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } }
+          ]
         },
         include: {
-          group: {
-            select: {
-              id: true,
-              title: true,
-              description: true
-            }
-          },
-          tests: {
-            where: { deletedAt: null },
-            select: {
-              id: true,
-              title: true,
-              type: true
+          course: {
+            include: {
+              group: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true
+                }
+              },
+              tests: {
+                where: { deletedAt: null },
+                select: {
+                  id: true,
+                  title: true,
+                  type: true
+                }
+              }
             }
           }
-        },
-        orderBy: [
-          {
-            group: {
-              order: "asc"
-            }
-          },
-          {
-            order: "asc"
-          },
-          {
-            createdAt: "desc"
-          }
-        ]
+        }
       })
+
+      // Extract courses from enrollments - only active and not deleted
+      const courses = enrolledCourses
+        .map(enrollment => enrollment.course)
+        .filter(course => 
+          course !== null && 
+          course.isActive && 
+          !course.deletedAt
+        )
+        .sort((a, b) => {
+          // Sort by group order, then course order, then creation date
+          if (a.group?.order !== b.group?.order) {
+            return (a.group?.order || 0) - (b.group?.order || 0)
+          }
+          if (a.order !== b.order) {
+            return a.order - b.order
+          }
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        })
 
       // Get user's progress for each course
       const coursesWithProgress = await Promise.all(

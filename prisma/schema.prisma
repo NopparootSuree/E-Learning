@@ -91,6 +91,7 @@ model Employee {
   testAttempts   TestAttempt[]
   scores         Score[]
   user           User?
+  enrollments    CourseEnrollment[]
 
   @@map("EL_EMPLOYEES")
 }
@@ -133,6 +134,7 @@ model Course {
   tests          Test[]
   courseAttempts CourseAttempt[]
   scores         Score[]
+  enrollments    CourseEnrollment[]
 
   @@map("EL_COURSES")
 }
@@ -266,4 +268,26 @@ model Score {
 
   @@unique([employeeId, courseId])
   @@map("EL_SCORES")
+}
+
+// Course Enrollment (การลงทะเบียนเรียน)
+model CourseEnrollment {
+  id          String    @id @default(cuid()) @map("ID")
+  employeeId  String    @map("EMPLOYEE_ID")
+  courseId    String    @map("COURSE_ID")
+  enrolledBy  String?   @map("ENROLLED_BY") // Admin who enrolled the user
+  status      String    @default("active") @map("STATUS") // "active", "inactive", "completed"
+  enrolledAt  DateTime  @default(now()) @map("ENROLLED_AT")
+  expiresAt   DateTime? @map("EXPIRES_AT") // Optional expiration date
+  completedAt DateTime? @map("COMPLETED_AT")
+  createdAt   DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt   DateTime? @map("DELETED_AT")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id])
+  course   Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([employeeId, courseId])
+  @@map("EL_COURSE_ENROLLMENTS")
 }

@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
+import { requireCourseAccess } from "@/lib/course-access"
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await auth()
+    
+    // ตรวจสอบว่าเป็น user และต้องมีสิทธิ์เข้าถึง
+    if (session?.user?.employeeId && session.user.role !== 'admin') {
+      try {
+        await requireCourseAccess(session.user.employeeId, params.id, session.user.role)
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "ไม่มีสิทธิ์เข้าถึงหลักสูตรนี้" },
+          { status: 403 }
+        )
+      }
+    }
+
     const course = await prisma.course.findFirst({
       where: {
         id: params.id,

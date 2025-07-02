@@ -15,7 +15,8 @@ import {
   Download,
   TrendingUp,
   X,
-  FolderOpen
+  FolderOpen,
+  UserCheck
 } from "lucide-react"
 
 interface SidebarProps {
@@ -44,6 +45,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/admin/groups", label: "จัดการกลุ่มหลักสูตร", icon: FolderOpen },
     { href: "/courses", label: "จัดการหลักสูตร", icon: BookOpen },
     { href: "/employees", label: "จัดการพนักงาน", icon: Users },
+    { href: "/admin/enrollments", label: "จัดการการลงทะเบียน", icon: UserCheck },
     { href: "/admin/tests", label: "จัดการแบบทดสอบ", icon: HelpCircle },
     { href: "/admin/questions", label: "จัดการคำถาม", icon: Settings },
     { href: "/admin/reports", label: "รายงานและสถิติ", icon: TrendingUp },

@@ -5,12 +5,14 @@ export async function GET() {
   try {
     const groups = await prisma.group.findMany({
       where: {
-        deletedAt: null
+        deletedAt: null,
+        isActive: true
       },
       include: {
         courses: {
           where: {
-            deletedAt: null
+            deletedAt: null,
+            isActive: true
           },
           orderBy: {
             order: "asc"

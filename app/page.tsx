@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, BarChart3, Users, HelpCircle, Settings, Download, GraduationCap, Clock, TrendingUp } from "lucide-react"
+import { BookOpen, BarChart3, Users, HelpCircle, Settings, Download, GraduationCap, Clock, TrendingUp, UserCheck } from "lucide-react"
 
 export default function Home() {
   const { data: session } = useSession()
@@ -36,6 +36,13 @@ export default function Home() {
       href: "/employees", 
       icon: Users,
       color: "bg-purple-500"
+    },
+    {
+      title: "จัดการการลงทะเบียน",
+      description: "กำหนดสิทธิ์การเข้าถึงหลักสูตรสำหรับพนักงาน",
+      href: "/admin/enrollments",
+      icon: UserCheck,
+      color: "bg-blue-500"
     },
     {
       title: "จัดการแบบทดสอบ",
