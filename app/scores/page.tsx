@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Trophy, BookOpen, CheckCircle, XCircle, Clock, Download, GraduationCap, Search, Filter } from "lucide-react"
+import { Trophy, BookOpen, CheckCircle, Clock, Download, GraduationCap, Search, Filter } from "lucide-react"
 
 interface Employee {
   id: string
@@ -86,8 +86,15 @@ export default function ScoresPage() {
 
       const response = await fetch(url)
       if (response.ok) {
-        const data = await response.json()
-        setScores(data)
+        const result = await response.json()
+        // Handle the API response structure { data: [...], pagination: {...}, stats: {...} }
+        if (result.data && Array.isArray(result.data)) {
+          setScores(result.data)
+        } else if (Array.isArray(result)) {
+          setScores(result)
+        } else {
+          setScores([])
+        }
       }
     } catch (error) {
       console.error("Error fetching scores:", error)
@@ -101,7 +108,9 @@ export default function ScoresPage() {
       const response = await fetch("/api/employees")
       if (response.ok) {
         const data = await response.json()
-        setEmployees(data)
+        // Handle both old format (array) and new format (with data property)
+        const employeesData = Array.isArray(data) ? data : (data.data || [])
+        setEmployees(employeesData)
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
@@ -113,10 +122,13 @@ export default function ScoresPage() {
       const response = await fetch("/api/courses")
       if (response.ok) {
         const data = await response.json()
-        setCourses(data)
+        // Handle both old format (array) and new format (with data property)
+        const coursesData = Array.isArray(data) ? data : (data.data || [])
+        setCourses(coursesData)
       }
     } catch (error) {
       console.error("Error fetching courses:", error)
+      setCourses([])
     }
   }, [])
 
@@ -151,12 +163,14 @@ export default function ScoresPage() {
   }
 
   const getCompletionStats = () => {
+    if (!Array.isArray(scores)) return { completed: 0, total: 0, percentage: 0 }
     const completed = scores.filter(s => s.completedAt).length
     const total = scores.length
     return { completed, total, percentage: total > 0 ? (completed / total) * 100 : 0 }
   }
 
   const getAverageScores = () => {
+    if (!Array.isArray(scores)) return { preTest: 0, postTest: 0, final: 0 }
     const validPreScores = scores.filter(s => s.preTestScore !== null).map(s => s.preTestScore!)
     const validPostScores = scores.filter(s => s.postTestScore !== null).map(s => s.postTestScore!)
     const validFinalScores = scores.filter(s => s.finalScore !== null).map(s => s.finalScore!)
@@ -294,7 +308,7 @@ export default function ScoresPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">พนักงานทั้งหมด</SelectItem>
-                    {employees.map((employee) => (
+                    {(employees || []).map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.idEmp} - {employee.name}
                       </SelectItem>
@@ -313,7 +327,7 @@ export default function ScoresPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">หลักสูตรทั้งหมด</SelectItem>
-                  {courses.map((course) => (
+                  {(courses || []).map((course) => (
                     <SelectItem key={course.id} value={course.id}>
                       {course.title}
                     </SelectItem>
@@ -458,7 +472,7 @@ export default function ScoresPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {scores.map((score) => (
+                {(scores || []).map((score) => (
                   <TableRow key={score.id}>
                     <TableCell>
                       <div>

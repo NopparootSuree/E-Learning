@@ -46,7 +46,9 @@ export default function AdminExportPage() {
       const response = await fetch("/api/employees")
       if (response.ok) {
         const data = await response.json()
-        setEmployees(data)
+        // Handle both old format (array) and new format (with data property)
+        const employeesData = Array.isArray(data) ? data : (data.data || [])
+        setEmployees(employeesData)
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
@@ -133,9 +135,11 @@ export default function AdminExportPage() {
       const response = await fetch("/api/employees")
       if (response.ok) {
         const data = await response.json()
+        // Handle both old format (array) and new format (with data property)
+        const employeesData = Array.isArray(data) ? data : (data.data || [])
         
         const headers = ["รหัสพนักงาน", "ชื่อ-นามสกุล", "แผนก", "ฝ่าย", "บริษัท", "วันที่สร้าง"]
-        const rows = data.map((emp: any) => [
+        const rows = employeesData.map((emp: any) => [
           emp.idEmp,
           emp.name,
           emp.section,

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { buildWhereClause, buildOrderBy, getPaginationParams, parseQueryString } from "@/lib/filters"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userView = searchParams.get('userView')
     const session = await auth()
+    
+    // Parse filter parameters
+    const filters = parseQueryString(searchParams.toString())
     
     if (userView === 'true' && session?.user?.employeeId) {
       // User view - only show enrolled courses
@@ -27,7 +31,8 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true,
                   title: true,
-                  description: true
+                  description: true,
+                  order: true
                 }
               },
               tests: {
@@ -115,21 +120,35 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(coursesWithProgress)
     } else {
-      // Admin view - all courses
+      // Admin view - all courses with filtering
+      const where = buildWhereClause(filters)
+      const orderBy = buildOrderBy(filters.sortBy, filters.sortOrder)
+      const { page, limit, skip } = getPaginationParams(filters)
+
+      // Get total count for pagination
+      const total = await prisma.course.count({ where })
+
+      // Get courses with filters
       const courses = await prisma.course.findMany({
-        where: {
-          deletedAt: null
-        },
+        where,
         include: {
           group: {
             select: {
               id: true,
               title: true,
-              description: true
+              description: true,
+              order: true
+            }
+          },
+          _count: {
+            select: {
+              enrollments: {
+                where: { deletedAt: null }
+              }
             }
           }
         },
-        orderBy: [
+        orderBy: filters.sortBy ? orderBy : [
           {
             group: {
               order: "asc"
@@ -141,10 +160,21 @@ export async function GET(request: NextRequest) {
           {
             createdAt: "desc"
           }
-        ]
+        ],
+        skip,
+        take: limit
       })
 
-      return NextResponse.json(courses)
+      return NextResponse.json({
+        data: courses,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
+        filters: filters
+      })
     }
   } catch (error) {
     console.error("Error fetching courses:", error)

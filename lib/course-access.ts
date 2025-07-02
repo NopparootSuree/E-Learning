@@ -44,10 +44,6 @@ export async function getAccessibleCourses(employeeId: string) {
       },
       include: {
         course: {
-          where: {
-            deletedAt: null,
-            isActive: true
-          },
           include: {
             group: {
               select: {

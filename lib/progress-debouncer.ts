@@ -78,7 +78,10 @@ export class ProgressDebouncer {
   async flushAll(updateFunction: (key: string, data: any) => Promise<any>) {
     const promises: Promise<any>[] = []
     
-    for (const [key, pending] of this.pendingUpdates.entries()) {
+    // Convert entries to array to avoid iterator issues
+    const entries = Array.from(this.pendingUpdates.entries())
+    
+    for (const [key, pending] of entries) {
       promises.push(
         updateFunction(key, pending.data)
           .then(pending.resolve)

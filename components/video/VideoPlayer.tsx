@@ -440,7 +440,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
         }
       }
     }
-  }, [courseId, isCompleted, onComplete, isRestoringPosition, saveProgress])
+  }, [isCompleted, onComplete, isRestoringPosition, saveProgress])
 
   const handlePlay = () => {
     if (!isTabActive) {

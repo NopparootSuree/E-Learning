@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
+import { PrismaClient } from "@/app/generated/prisma"
+import { buildWhereClause, buildOrderBy, getPaginationParams, parseQueryString } from "@/lib/filters"
+
+const prisma = new PrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,196 +13,157 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const employeeId = searchParams.get("employeeId")
-    const courseId = searchParams.get("courseId")
-    const userView = searchParams.get("userView")
-    const search = searchParams.get("search")
-    const status = searchParams.get("status")
+    const filters = parseQueryString(searchParams.toString())
 
-    const whereClause: any = {
-      deletedAt: null,
-      employee: {
-        deletedAt: null
-      },
-      course: {
-        deletedAt: null
+    // Build base where clause
+    const where: any = {
+      deletedAt: null
+    }
+
+    // Role-based filtering
+    if (session.user.role !== 'admin' && session.user.employeeId) {
+      where.employeeId = session.user.employeeId
+    } else if (filters.employeeId) {
+      where.employeeId = filters.employeeId
+    }
+
+    // Course filtering
+    if (filters.courseId) {
+      where.courseId = filters.courseId
+    }
+
+    // Score range filtering
+    if (filters.minScore !== undefined || filters.maxScore !== undefined) {
+      where.finalScore = {}
+      if (filters.minScore !== undefined) {
+        where.finalScore.gte = filters.minScore
+      }
+      if (filters.maxScore !== undefined) {
+        where.finalScore.lte = filters.maxScore
       }
     }
 
-    // If userView=true, filter by current user's employee ID
-    if (userView === "true") {
-      const employee = await prisma.employee.findFirst({
-        where: {
-          id: session.user.employeeId,
-          deletedAt: null
-        }
-      })
-      
-      if (!employee) {
-        return NextResponse.json({ error: "Employee not found" }, { status: 404 })
-      }
-      
-      whereClause.employeeId = employee.id
-    } else {
-      // Admin view - allow filtering
-      if (employeeId && employeeId !== "all") {
-        whereClause.employeeId = employeeId
+    // Status filtering
+    if (filters.status && filters.status !== 'all') {
+      switch (filters.status) {
+        case 'completed':
+          where.completedAt = { not: null }
+          break
+        case 'in_progress':
+          where.completedAt = null
+          break
+        case 'passed':
+          where.finalScore = { gte: 70 }
+          break
+        case 'failed':
+          where.AND = [
+            { finalScore: { not: null } },
+            { finalScore: { lt: 70 } }
+          ]
+          break
       }
     }
 
-    if (courseId && courseId !== "all") {
-      whereClause.courseId = courseId
-    }
-
-    // Search filter
-    if (search && search.trim()) {
-      whereClause.employee = {
-        ...whereClause.employee,
+    // Search by employee name
+    if (filters.search) {
+      where.employee = {
         OR: [
-          { name: { contains: search.trim() } },
-          { idEmp: { contains: search.trim() } },
-          { department: { contains: search.trim() } },
-          { section: { contains: search.trim() } }
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { idEmp: { contains: filters.search, mode: 'insensitive' } }
         ]
       }
     }
 
-    // Status filter
-    if (status && status !== "all") {
-      switch (status) {
-        case "completed":
-          whereClause.completedAt = { not: null }
-          break
-        case "in_progress":
-          whereClause.completedAt = null
-          break
-        case "passed":
-          whereClause.finalScore = { gte: 80 }
-          break
-        case "failed":
-          whereClause.finalScore = { lt: 60 }
-          break
+    // Date range filtering
+    if (filters.dateFrom || filters.dateTo) {
+      where.createdAt = {}
+      if (filters.dateFrom) {
+        where.createdAt.gte = new Date(filters.dateFrom)
+      }
+      if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo)
+        toDate.setHours(23, 59, 59, 999)
+        where.createdAt.lte = toDate
       }
     }
 
+    const orderBy = buildOrderBy(filters.sortBy, filters.sortOrder)
+    const { page, limit, skip } = getPaginationParams(filters)
+
+    // Get total count
+    const total = await prisma.score.count({ where })
+
+    // Get scores with filtering
     const scores = await prisma.score.findMany({
-      where: whereClause,
+      where,
       include: {
         employee: {
           select: {
             id: true,
             idEmp: true,
             name: true,
-            section: true,
             department: true,
-            company: true
+            company: true,
+            section: true
           }
         },
         course: {
           select: {
             id: true,
-            title: true
+            title: true,
+            group: {
+              select: {
+                title: true
+              }
+            }
           }
         }
       },
-      orderBy: [
-        { completedAt: { sort: "desc", nulls: "last" } },
-        { createdAt: "desc" }
-      ]
+      orderBy: filters.sortBy ? orderBy : { createdAt: "desc" },
+      skip,
+      take: limit
     })
 
-    return NextResponse.json(scores)
+    // Calculate statistics
+    const stats = {
+      averageScore: 0,
+      passRate: 0,
+      completionRate: 0
+    }
+
+    if (scores.length > 0) {
+      const completedScores = scores.filter(s => s.finalScore !== null)
+      const passedScores = completedScores.filter(s => s.finalScore !== null && s.finalScore >= 70)
+      
+      stats.averageScore = completedScores.length > 0 
+        ? completedScores.reduce((sum, s) => sum + (s.finalScore || 0), 0) / completedScores.length
+        : 0
+      
+      stats.passRate = completedScores.length > 0 
+        ? (passedScores.length / completedScores.length) * 100
+        : 0
+        
+      stats.completionRate = scores.length > 0 
+        ? (completedScores.length / scores.length) * 100
+        : 0
+    }
+
+    return NextResponse.json({
+      data: scores,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      },
+      stats,
+      filters: filters
+    })
+
   } catch (error) {
     console.error("Error fetching scores:", error)
     return NextResponse.json(
       { error: "Failed to fetch scores" },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { employeeId, courseId, preTestScore, postTestScore, finalScore } = body
-
-    // Check if employee exists
-    const employee = await prisma.employee.findFirst({
-      where: {
-        id: employeeId,
-        deletedAt: null
-      }
-    })
-
-    if (!employee) {
-      return NextResponse.json(
-        { error: "ไม่พบพนักงานที่เลือก" },
-        { status: 400 }
-      )
-    }
-
-    // Check if course exists
-    const course = await prisma.course.findFirst({
-      where: {
-        id: courseId,
-        deletedAt: null
-      }
-    })
-
-    if (!course) {
-      return NextResponse.json(
-        { error: "ไม่พบหลักสูตรที่เลือก" },
-        { status: 400 }
-      )
-    }
-
-    // Create or update score
-    const score = await prisma.score.upsert({
-      where: {
-        employeeId_courseId: {
-          employeeId,
-          courseId
-        }
-      },
-      update: {
-        preTestScore: preTestScore !== undefined ? preTestScore : undefined,
-        postTestScore: postTestScore !== undefined ? postTestScore : undefined,
-        finalScore: finalScore !== undefined ? finalScore : undefined,
-        completedAt: finalScore !== undefined && finalScore !== null ? new Date() : undefined
-      },
-      create: {
-        employeeId,
-        courseId,
-        preTestScore: preTestScore || null,
-        postTestScore: postTestScore || null,
-        finalScore: finalScore || null,
-        completedAt: finalScore !== undefined && finalScore !== null ? new Date() : null
-      },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            idEmp: true,
-            name: true,
-            section: true,
-            department: true,
-            company: true
-          }
-        },
-        course: {
-          select: {
-            id: true,
-            title: true
-          }
-        }
-      }
-    })
-
-    return NextResponse.json(score, { status: 201 })
-  } catch (error) {
-    console.error("Error creating/updating score:", error)
-    return NextResponse.json(
-      { error: "Failed to create/update score" },
       { status: 500 }
     )
   }

@@ -82,7 +82,9 @@ export default function AdminCoursesPage() {
       const response = await fetch("/api/courses")
       if (response.ok) {
         const data = await response.json()
-        setCourses(data)
+        // Handle both old format (array) and new format (with data property)
+        const coursesData = Array.isArray(data) ? data : (data.data || [])
+        setCourses(coursesData)
       }
     } catch (error) {
       console.error("Error fetching courses:", error)
@@ -214,7 +216,7 @@ export default function AdminCoursesPage() {
     setEditingCourse(null)
   }
 
-  const filteredCourses = courses.filter(course => {
+  const filteredCourses = (courses || []).filter(course => {
     const matchesSearch = !filterSearch || 
       course.title.toLowerCase().includes(filterSearch.toLowerCase()) ||
       course.description?.toLowerCase().includes(filterSearch.toLowerCase())

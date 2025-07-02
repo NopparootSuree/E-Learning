@@ -59,7 +59,9 @@ export default function EmployeesPage() {
       const response = await fetch("/api/employees")
       if (response.ok) {
         const data = await response.json()
-        setEmployees(data)
+        // Handle both old format (array) and new format (with data property)
+        const employeesData = Array.isArray(data) ? data : (data.data || [])
+        setEmployees(employeesData)
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
@@ -154,8 +156,8 @@ export default function EmployeesPage() {
     return matchesSearch && matchesDepartment && matchesCompany
   })
 
-  const uniqueDepartments = Array.from(new Set(employees.map(emp => emp.department)))
-  const uniqueCompanies = Array.from(new Set(employees.map(emp => emp.company)))
+  const uniqueDepartments = Array.from(new Set((employees || []).map(emp => emp.department)))
+  const uniqueCompanies = Array.from(new Set((employees || []).map(emp => emp.company)))
 
   const handleDialogChange = (open: boolean) => {
     setDialogOpen(open)
@@ -324,7 +326,7 @@ export default function EmployeesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ฝ่ายทั้งหมด</SelectItem>
-                  {uniqueDepartments.map((dept) => (
+                  {(uniqueDepartments || []).map((dept) => (
                     <SelectItem key={dept} value={dept}>
                       {dept}
                     </SelectItem>
@@ -342,7 +344,7 @@ export default function EmployeesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">บริษัททั้งหมด</SelectItem>
-                  {uniqueCompanies.map((company) => (
+                  {(uniqueCompanies || []).map((company) => (
                     <SelectItem key={company} value={company}>
                       {company}
                     </SelectItem>
@@ -421,7 +423,7 @@ export default function EmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((employee) => (
+                {(filteredEmployees || []).map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">{employee.idEmp}</TableCell>
                     <TableCell>{employee.name}</TableCell>

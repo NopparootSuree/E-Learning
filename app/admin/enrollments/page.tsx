@@ -48,6 +48,7 @@ interface Group {
   title: string
   description?: string
   order: number
+  isActive: boolean
   courses: Course[]
 }
 
@@ -129,7 +130,9 @@ export default function EnrollmentsPage() {
 
       if (employeesRes.ok) {
         const employeesData = await employeesRes.json()
-        setEmployees(employeesData)
+        // Handle both old format (array) and new format (with data property)
+        const employees = Array.isArray(employeesData) ? employeesData : (employeesData.data || [])
+        setEmployees(employees)
       }
 
       if (groupsRes.ok) {
@@ -139,7 +142,9 @@ export default function EnrollmentsPage() {
 
       if (coursesRes.ok) {
         const coursesData = await coursesRes.json()
-        setCourses(coursesData.filter((course: Course) => course.isActive))
+        // Handle both old format (array) and new format (with data property)
+        const courses = Array.isArray(coursesData) ? coursesData : (coursesData.data || [])
+        setCourses(courses.filter((course: Course) => course.isActive))
       }
     } catch (error) {
       console.error("Error loading data:", error)
@@ -168,7 +173,7 @@ export default function EnrollmentsPage() {
     })
 
     // ลบ courseIds ที่ซ้ำ
-    allCourseIds = [...new Set(allCourseIds)]
+    allCourseIds = Array.from(new Set(allCourseIds))
 
     if (allCourseIds.length === 0) {
       setMessage({ type: "error", text: "ไม่พบหลักสูตรที่จะลงทะเบียน" })
@@ -272,7 +277,7 @@ export default function EnrollmentsPage() {
     const variants = {
       active: "default",
       inactive: "secondary", 
-      completed: "success"
+      completed: "default"
     } as const
 
     const labels = {

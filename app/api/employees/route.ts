@@ -1,12 +1,41 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { buildWhereClause, buildOrderBy, getPaginationParams, parseQueryString } from "@/lib/filters"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const filters = parseQueryString(searchParams.toString())
+    
+    // Build where clause for employee filtering
+    const where = {
+      deletedAt: null,
+      ...buildWhereClause(filters)
+    }
+
+    // Handle search across multiple fields
+    if (filters.search) {
+      const searchTerms = filters.search.trim().split(/\s+/)
+      where.OR = searchTerms.map(term => ({
+        OR: [
+          { name: { contains: term, mode: 'insensitive' } },
+          { idEmp: { contains: term, mode: 'insensitive' } },
+          { section: { contains: term, mode: 'insensitive' } },
+          { department: { contains: term, mode: 'insensitive' } },
+          { company: { contains: term, mode: 'insensitive' } }
+        ]
+      }))
+    }
+
+    const orderBy = buildOrderBy(filters.sortBy, filters.sortOrder)
+    const { page, limit, skip } = getPaginationParams(filters)
+
+    // Get total count
+    const total = await prisma.employee.count({ where })
+
+    // Get employees with filtering and pagination
     const employees = await prisma.employee.findMany({
-      where: {
-        deletedAt: null
-      },
+      where,
       include: {
         user: {
           select: {
@@ -14,14 +43,33 @@ export async function GET() {
             email: true,
             role: true
           }
+        },
+        _count: {
+          select: {
+            courseAttempts: {
+              where: { deletedAt: null }
+            },
+            enrollments: {
+              where: { deletedAt: null }
+            }
+          }
         }
       },
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: filters.sortBy ? orderBy : { createdAt: "desc" },
+      skip,
+      take: limit
     })
 
-    return NextResponse.json(employees)
+    return NextResponse.json({
+      data: employees,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      },
+      filters: filters
+    })
   } catch (error) {
     console.error("Error fetching employees:", error)
     return NextResponse.json(

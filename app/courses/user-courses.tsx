@@ -58,10 +58,13 @@ export default function UserCoursesPage() {
       const response = await fetch("/api/courses?userView=true")
       if (response.ok) {
         const data = await response.json()
-        setCourses(data)
+        // userView=true returns array directly, but add safety check
+        const coursesData = Array.isArray(data) ? data : []
+        setCourses(coursesData)
       }
     } catch (error) {
       console.error("Error fetching courses:", error)
+      setCourses([])
     } finally {
       setLoading(false)
     }
