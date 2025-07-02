@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, GraduationCap, Search, Filter } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 interface Employee {
   id: string
@@ -17,8 +18,14 @@ interface Employee {
   section: string
   department: string
   company: string
+  password: string | null
   createdAt: string
   updatedAt: string
+  user?: {
+    id: string
+    email: string | null
+    role: string
+  } | null
 }
 
 export default function EmployeesPage() {
@@ -36,7 +43,10 @@ export default function EmployeesPage() {
     name: "",
     section: "",
     department: "",
-    company: ""
+    company: "",
+    email: "",
+    password: "",
+    role: "user"
   })
 
   useEffect(() => {
@@ -92,7 +102,10 @@ export default function EmployeesPage() {
       name: employee.name,
       section: employee.section,
       department: employee.department,
-      company: employee.company
+      company: employee.company,
+      email: employee.user?.email || "",
+      password: "",
+      role: employee.user?.role || "user"
     })
     setDialogOpen(true)
   }
@@ -121,7 +134,10 @@ export default function EmployeesPage() {
       name: "",
       section: "",
       department: "",
-      company: ""
+      company: "",
+      email: "",
+      password: "",
+      role: "user"
     })
     setEditingEmployee(null)
   }
@@ -168,7 +184,7 @@ export default function EmployeesPage() {
                 {editingEmployee ? "แก้ไขข้อมูลพนักงาน" : "เพิ่มพนักงานใหม่"}
               </DialogTitle>
               <DialogDescription>
-                กรอกข้อมูลพนักงานให้ครบถ้วน
+                กรอกข้อมูลพนักงานและบัญชีผู้ใช้ให้ครบถ้วน (อีเมลและรหัสผ่านจำเป็นสำหรับการเข้าสู่ระบบ)
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -216,6 +232,50 @@ export default function EmployeesPage() {
                   onChange={(e) => setFormData({...formData, company: e.target.value})}
                   required
                 />
+              </div>
+              
+              {/* User Account Section */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">บัญชีผู้ใช้ (เข้าสู่ระบบ)</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">อีเมล</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    placeholder="user@company.com"
+                    required={!editingEmployee}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    รหัสผ่าน {editingEmployee && "(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)"}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    placeholder="••••••••"
+                    required={!editingEmployee}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="role">สิทธิ์ผู้ใช้</Label>
+                  <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="เลือกสิทธิ์" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">ผู้ใช้ทั่วไป (User)</SelectItem>
+                      <SelectItem value="admin">ผู้ดูแลระบบ (Admin)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => handleDialogChange(false)}>
@@ -355,6 +415,8 @@ export default function EmployeesPage() {
                   <TableHead>แผนก</TableHead>
                   <TableHead>ฝ่าย</TableHead>
                   <TableHead>บริษัท</TableHead>
+                  <TableHead>อีเมล</TableHead>
+                  <TableHead>สิทธิ์</TableHead>
                   <TableHead className="text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -366,6 +428,22 @@ export default function EmployeesPage() {
                     <TableCell>{employee.section}</TableCell>
                     <TableCell>{employee.department}</TableCell>
                     <TableCell>{employee.company}</TableCell>
+                    <TableCell>
+                      {employee.user?.email ? (
+                        <span className="text-sm">{employee.user.email}</span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">ไม่มีบัญชี</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {employee.user?.role ? (
+                        <Badge variant={employee.user.role === "admin" ? "default" : "secondary"}>
+                          {employee.user.role === "admin" ? "Admin" : "User"}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
                         <Button

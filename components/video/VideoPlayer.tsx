@@ -22,6 +22,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
   const [duration, setDuration] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isRestoringPosition, setIsRestoringPosition] = useState(false)
+  const [hasLoadedProgress, setHasLoadedProgress] = useState(false)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
@@ -35,12 +36,13 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
   const saveProgressIntervalRef = useRef<NodeJS.Timeout>()
 
   const loadProgress = useCallback(async () => {
+    // Prevent multiple loads
+    if (hasLoadedProgress) return
+    
     try {
       const response = await fetch(`/api/courses/${courseId}/progress`)
       if (response.ok) {
         const data = await response.json()
-        
-        console.log("🔄 Loading progress data:", data)
         
         // Set initial states
         setIsCompleted(data.hasCompletedContent)
@@ -48,93 +50,58 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
         const savedTime = data.currentTime || 0
         const savedProgress = data.contentProgress || 0
         
-        console.log("📍 Saved position - Time:", savedTime, "Progress:", savedProgress)
+        // Set initial values immediately
+        setIsCompleted(data.hasCompletedContent)
         
-        // Always try to set saved position
-        const trySetCurrentTime = () => {
-          if (videoRef.current) {
-            const readyState = videoRef.current.readyState
-            const duration = videoRef.current.duration
-            
-            console.log("🎬 Video state - ReadyState:", readyState, "Duration:", duration)
-            
-            // Wait for at least metadata (readyState >= 1)
-            if (readyState >= 1 && duration > 0) {
-              // Set video position - allow seeking to any saved position
-              if (savedTime > 0) {
-                setIsRestoringPosition(true)
-                
-                const timeToSet = Math.min(savedTime, duration)
-                
-                console.log("⏯️ Setting video position to:", timeToSet)
-                
-                // Set position with retry mechanism
-                let retryCount = 0
-                const setPosition = () => {
-                  if (videoRef.current && retryCount < 5) {
-                    videoRef.current.currentTime = timeToSet
-                    retryCount++
-                    
-                    // Verify position was set
-                    setTimeout(() => {
-                      if (videoRef.current && Math.abs(videoRef.current.currentTime - timeToSet) > 1) {
-                        console.log("⚠️ Position not set correctly, retrying...", videoRef.current.currentTime, "vs", timeToSet)
-                        setPosition()
-                      } else {
-                        console.log("✅ Video position set successfully:", videoRef.current?.currentTime)
-                        setIsRestoringPosition(false)
-                      }
-                    }, 100)
-                  }
-                }
-                
-                // Try setting position
-                setPosition()
-                
-                // Also set component state
-                setCurrentTime(timeToSet)
-              }
-              
-              // Set saved progress
-              if (savedProgress > 0) {
-                setProgress(savedProgress)
-              } else if (savedTime > 0) {
-                const calculatedProgress = (savedTime / duration) * 100
-                setProgress(calculatedProgress)
-              }
-              
-              setDuration(duration)
-              
-            } else {
-              // Retry when video loads more data
-              console.log("⏳ Video not ready, retrying in 200ms...")
-              setTimeout(trySetCurrentTime, 200)
-            }
-          }
+        if (savedProgress > 0) {
+          setProgress(savedProgress)
         }
         
-        if (videoRef.current) {
-          // Try immediately if video is ready
-          if (videoRef.current.readyState >= 1) {
-            trySetCurrentTime()
+        if (savedTime > 0) {
+          setCurrentTime(savedTime)
+        }
+        
+        // Store the position to set when video is ready
+        if (savedTime > 0 && videoRef.current) {
+          const video = videoRef.current
+          
+          const setPosition = () => {
+            if (video.duration > 0) {
+              const timeToSet = Math.min(savedTime, video.duration)
+              video.currentTime = timeToSet
+              setCurrentTime(timeToSet)
+            }
+          }
+          
+          // If video already has duration, set immediately
+          if (video.duration > 0) {
+            setPosition()
           } else {
-            // Wait for video events
-            console.log("⏳ Waiting for video to load...")
-            const handleVideoReady = () => {
-              console.log("🎬 Video ready event fired")
-              trySetCurrentTime()
+            // Wait for duration to be available
+            const checkDuration = () => {
+              if (video.duration > 0) {
+                setPosition()
+              } else {
+                setTimeout(checkDuration, 100)
+              }
             }
-            
-            videoRef.current.addEventListener('loadedmetadata', handleVideoReady, { once: true })
-            videoRef.current.addEventListener('loadeddata', handleVideoReady, { once: true })
-            videoRef.current.addEventListener('canplay', handleVideoReady, { once: true })
+            checkDuration()
           }
         }
+        
+        // Set duration
+        if (videoRef.current?.duration) {
+          setDuration(videoRef.current.duration)
+        }
+        
+        // Mark as loaded to prevent multiple loads
+        setHasLoadedProgress(true)
       }
     } catch (error) {
-      console.error("❌ Error loading progress:", error)
+      // Mark as loaded even on error to prevent infinite retries
+      setHasLoadedProgress(true)
     }
-  }, [courseId])
+  }, [courseId, hasLoadedProgress])
 
   const saveProgress = useCallback(async () => {
     if (!videoRef.current || duration === 0) return
@@ -147,8 +114,6 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
       
       // Use the highest progress value (prevents going backwards)
       const realProgress = Math.max(calculatedProgress, progress)
-      
-      
       const response = await fetch(`/api/courses/${courseId}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,10 +134,15 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
     }
   }, [courseId, duration, progress])
 
-  // Load saved progress on mount
+  // Simple approach - just load progress once when component mounts
   useEffect(() => {
-    loadProgress()
-  }, [loadProgress])
+    if (!hasLoadedProgress) {
+      // Small delay to let video start loading
+      setTimeout(() => {
+        loadProgress()
+      }, 100)
+    }
+  }, [loadProgress, hasLoadedProgress])
 
   // Save progress before page unload (allow refresh but save position)
   useEffect(() => {
@@ -397,8 +367,6 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
           const newProgress = Math.max(progressPercent, prevProgress)
           return newProgress
         })
-        
-        
         // Save progress every 10% or every 30 seconds
         if (Math.floor(progressPercent) % 10 === 0 && Math.floor(progressPercent) !== Math.floor((current - 1) / total * 100)) {
           saveProgress()
@@ -513,8 +481,13 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
             ref={videoRef}
             src={src}
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={() => {}}
-            onLoadedData={() => {}}
+            onLoadedMetadata={(e) => {
+              const video = e.currentTarget
+              setDuration(video.duration)
+            }}
+            onLoadedData={() => {
+              // Video data is loaded, but we handle position setting in loadProgress
+            }}
             onSeeking={handleSeeking}
             onSeeked={() => {}}
             onContextMenu={handleContextMenu}
@@ -524,7 +497,7 @@ export default function VideoPlayer({ src, courseId, onComplete, className = "" 
             onCopy={(e) => e.preventDefault()}
             onCut={(e) => e.preventDefault()}
             style={{ pointerEvents: isCompleted ? 'auto' : 'none' }}
-            preload="metadata"
+            preload="auto"
           />
           
           {/* Custom Controls Overlay */}

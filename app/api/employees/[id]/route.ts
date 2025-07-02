@@ -36,13 +36,16 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { idEmp, name, section, department, company } = body
+    const { idEmp, name, section, department, company, email, password, role } = body
 
     // Check if employee exists
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         id: params.id,
         deletedAt: null
+      },
+      include: {
+        user: true
       }
     })
 
@@ -71,18 +74,105 @@ export async function PUT(
       }
     }
 
-    const employee = await prisma.employee.update({
+    // Check if email already exists (exclude current user)
+    if (email && existingEmployee.user?.email !== email) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email,
+          id: { not: existingEmployee.user?.id }
+        }
+      })
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "อีเมลนี้มีอยู่ในระบบแล้ว" },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update employee and user in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update employee
+      const employee = await tx.employee.update({
+        where: { id: params.id },
+        data: {
+          idEmp,
+          name,
+          section,
+          department,
+          company
+        }
+      })
+
+      // Handle user account
+      if (email) {
+        let hashedPassword = existingEmployee.password
+        
+        // Hash new password if provided
+        if (password) {
+          const bcrypt = require('bcryptjs')
+          hashedPassword = await bcrypt.hash(password, 10)
+          
+          await tx.employee.update({
+            where: { id: params.id },
+            data: { password: hashedPassword }
+          })
+        }
+
+        if (existingEmployee.user) {
+          // Update existing user
+          await tx.user.update({
+            where: { id: existingEmployee.user.id },
+            data: {
+              email,
+              name,
+              role: role || "user"
+            }
+          })
+        } else {
+          // Create new user account
+          if (password) {
+            await tx.user.create({
+              data: {
+                email,
+                name,
+                role: role || "user",
+                employeeId: employee.id
+              }
+            })
+          }
+        }
+      } else if (existingEmployee.user) {
+        // Remove user account if email is cleared
+        await tx.user.delete({
+          where: { id: existingEmployee.user.id }
+        })
+        
+        await tx.employee.update({
+          where: { id: params.id },
+          data: { password: null }
+        })
+      }
+
+      return employee
+    })
+
+    // Return updated employee with user data
+    const updatedEmployee = await prisma.employee.findUnique({
       where: { id: params.id },
-      data: {
-        idEmp,
-        name,
-        section,
-        department,
-        company
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true
+          }
+        }
       }
     })
 
-    return NextResponse.json(employee)
+    return NextResponse.json(updatedEmployee)
   } catch (error) {
     console.error("Error updating employee:", error)
     return NextResponse.json(
